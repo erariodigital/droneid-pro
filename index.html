@@ -1,1296 +1,1047 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" class="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>DroneID Pro - Crachá Digital de Operador</title>
-  
-  <!-- PWA Meta Tags -->
+
+  <!-- PWA Meta Tags & Manifest -->
   <meta name="theme-color" content="#030712">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="DroneID Pro">
+  <meta name="description" content="Crachá virtual de piloto e documentos regulatórios de aeronaves não tripuladas com suporte offline e validação de segurança">
+
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
   <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
   <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png">
 
-  <!-- Tailwind CSS & Fonts & Icons -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- QRCode.js para geração de QR Codes reais e escaneáveis -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
-          fontFamily: {
-            sans: ['Inter', 'sans-serif'],
-            mono: ['JetBrains Mono', 'monospace'],
-          },
           colors: {
-            tactical: {
-              900: '#030712',
-              850: '#060d1a',
-              800: '#0a1526',
-              700: '#0f223a',
-              border: '#162e4f',
-              cyan: '#00f2fe',
-              blue: '#0284c7',
-              emerald: '#10b981',
-              amber: '#f59e0b',
-              rose: '#f43f5e'
-            }
+            'tactical-dark': '#030712',
+            'tactical-panel': '#0b1329',
+            'tactical-card': '#111e38',
+            'tactical-border': '#1e293b',
+            'tactical-cyan': '#00f2fe',
+            'tactical-emerald': '#10b981',
+            'tactical-amber': '#f59e0b',
+            'tactical-rose': '#ef4444'
+          },
+          fontFamily: {
+            mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'monospace'],
+            sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif']
           }
         }
       }
     }
   </script>
+
   <style>
     body {
-      background-color: #030712;
-      color: #f1f5f9;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
     }
-    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-    .custom-scrollbar::-webkit-scrollbar-thumb { background: #162e4f; border-radius: 9999px; }
-    .neon-border-cyan { box-shadow: 0 0 15px rgba(0, 242, 254, 0.15); }
-    .neon-glow-cyan { filter: drop-shadow(0 0 8px rgba(0, 242, 254, 0.4)); }
-    @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .animate-pulse-slow { animation: pulse-slow 2.5s infinite ease-in-out; }
+    input, textarea {
+      user-select: text;
+    }
+    .safe-top {
+      padding-top: env(safe-area-inset-top, 0px);
+    }
+    .safe-bottom {
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    .qr-container canvas, .qr-container img {
+      margin: 0 auto;
+      border-radius: 8px;
+    }
   </style>
 </head>
-<body class="bg-tactical-900 font-sans min-h-screen flex flex-col justify-between selection:bg-tactical-cyan selection:text-black">
+<body class="bg-tactical-dark text-slate-100 min-h-screen flex flex-col font-sans antialiased overflow-x-hidden pb-28">
 
-  <!-- TOP HEADER / STATUS BAR -->
-  <header class="sticky top-0 z-40 bg-tactical-900/90 backdrop-blur-md border-b border-tactical-border/70 px-4 py-3">
-    <div class="max-w-xl mx-auto flex items-center justify-between">
-      <div class="flex items-center space-x-2.5">
-        <div class="w-8 h-8 rounded-lg bg-tactical-800 border border-tactical-cyan/40 flex items-center justify-center text-tactical-cyan shadow-sm">
-          <i class="fa-solid fa-shield-halved text-sm"></i>
+  <!-- HEADER GLOBAL -->
+  <header class="sticky top-0 z-40 bg-tactical-dark/95 backdrop-blur border-b border-tactical-border safe-top">
+    <div class="max-w-md mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-tactical-cyan to-blue-600 flex items-center justify-center shadow-lg shadow-tactical-cyan/20">
+          <i data-lucide="shield" class="w-5 h-5 text-tactical-dark stroke-[2.5]"></i>
         </div>
         <div>
           <div class="flex items-center space-x-1.5">
-            <span class="font-extrabold tracking-wider text-sm text-white">DRONE<span class="text-tactical-cyan">ID</span></span>
-            <span class="text-[10px] font-mono bg-tactical-cyan/15 text-tactical-cyan px-1.5 py-0.5 rounded font-bold">PRO</span>
+            <span class="font-black text-sm tracking-wider uppercase text-white">DroneID</span>
+            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-tactical-cyan/20 text-tactical-cyan border border-tactical-cyan/40">PRO</span>
           </div>
-          <p class="text-[10px] text-slate-400 font-mono">Crachá Digital de Operador</p>
+          <p class="text-[10px] text-slate-400 font-mono tracking-tight">Crachá Digital de Operador</p>
         </div>
       </div>
 
-      <!-- Quick Action Badges -->
+      <!-- BADGES DE STATUS & BOTÃO DE AJUSTES -->
       <div class="flex items-center space-x-2">
-        <div id="syncBadge" class="hidden sm:flex items-center space-x-1.5 px-2 py-1 rounded-full bg-tactical-800 border border-tactical-border text-[11px] font-mono text-slate-300">
-          <span class="w-1.5 h-1.5 rounded-full bg-tactical-cyan animate-pulse"></span>
-          <span>Sync Auto</span>
-        </div>
-
-        <button id="pwaInstallHeaderBtn" onclick="openInstallModal()" class="flex items-center space-x-1 px-2.5 py-1 rounded-full bg-tactical-blue/20 hover:bg-tactical-blue/30 border border-tactical-blue/50 text-[11px] font-mono text-tactical-cyan transition">
-          <i class="fa-solid fa-download text-xs"></i>
+        <button id="pwa-install-btn" class="hidden text-[11px] font-medium bg-tactical-cyan/15 hover:bg-tactical-cyan/25 text-tactical-cyan border border-tactical-cyan/40 px-2.5 py-1 rounded-full items-center space-x-1 transition-all">
+          <i data-lucide="download" class="w-3.5 h-3.5"></i>
           <span>App</span>
-          <span class="w-1.5 h-1.5 rounded-full bg-tactical-emerald"></span>
         </button>
 
-        <div class="flex items-center space-x-1 px-2 py-1 rounded-full bg-tactical-emerald/10 border border-tactical-emerald/30 text-[11px] font-mono text-tactical-emerald font-semibold">
-          <span class="w-2 h-2 rounded-full bg-tactical-emerald animate-pulse"></span>
-          <span>REGULAR</span>
+        <div id="badge-status-global" class="text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full flex items-center space-x-1.5 transition-all">
+          <span class="w-2 h-2 rounded-full animate-ping"></span>
+          <span id="badge-status-text">AUDITANDO</span>
         </div>
 
-        <button onclick="handleAjustesClick()" title="Configurações protegidas por PIN" class="w-8 h-8 rounded-lg bg-tactical-800 border border-tactical-border hover:border-tactical-cyan/50 text-slate-300 hover:text-tactical-cyan transition flex items-center justify-center">
-          <i class="fa-solid fa-sliders text-xs"></i>
+        <button onclick="solicitarAcessoAjustes()" title="Ajustes de Configuração" class="w-8 h-8 rounded-lg bg-slate-800/80 hover:bg-slate-700 border border-slate-700 flex items-center justify-center text-slate-300 hover:text-white transition-all active:scale-95">
+          <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- MAIN VIEWPORT CONTAINER -->
-  <main class="flex-1 w-full max-w-xl mx-auto px-4 py-4 pb-28">
+  <!-- BANNER DINÂMICO DE ALERTA REGULATÓRIO -->
+  <div id="banner-alerta-vencido" class="hidden max-w-md mx-auto w-full px-4 pt-3">
+    <div class="bg-tactical-rose/15 border border-tactical-rose/40 rounded-xl p-3 flex items-start space-x-3 text-tactical-rose shadow-lg shadow-tactical-rose/10">
+      <i data-lucide="alert-triangle" class="w-5 h-5 shrink-0 mt-0.5 stroke-[2.5]"></i>
+      <div class="text-xs">
+        <p class="font-bold tracking-wide">Atenção: Crachá com Pendência Regulatória</p>
+        <p class="text-[11px] text-slate-300 mt-0.5" id="banner-alerta-detalhe">Documento obrigatório vencido. Voo bloqueado perante a fiscalização.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTEÚDO PRINCIPAL (ABAS) -->
+  <main class="flex-1 max-w-md mx-auto w-full px-4 py-4 space-y-4">
 
     <!-- ========================================== -->
-    <!-- ABA 1: CRACHÁ (IDENTIFICAÇÃO DE OPERADOR)  -->
+    <!-- ABA 1: CRACHÁ VIRTUAL                      -->
     <!-- ========================================== -->
-    <div id="tabCracha" class="space-y-4">
-      
-      <!-- Cartão Tático de Identificação RPAS -->
-      <div class="relative bg-tactical-850 rounded-2xl border border-tactical-border overflow-hidden p-5 shadow-xl neon-border-cyan">
-        <div class="absolute -top-24 -right-24 w-48 h-48 bg-tactical-cyan/10 rounded-full blur-3xl pointer-events-none"></div>
-
-        <div class="flex items-center justify-between pb-3 border-b border-tactical-border/60">
+    <section id="tab-cracha" class="space-y-4">
+      <div class="relative bg-gradient-to-b from-tactical-card to-tactical-panel border-2 rounded-2xl p-5 shadow-2xl transition-all" id="cracha-card-frame">
+        
+        <!-- Topo do Crachá -->
+        <div class="flex items-center justify-between pb-4 border-b border-tactical-border">
           <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-id-badge text-tactical-cyan text-sm"></i>
-            <span class="text-xs font-mono font-bold tracking-wider text-slate-300 uppercase">RPAS Pilot Identification</span>
+            <i data-lucide="badge-check" class="w-4 h-4 text-tactical-cyan"></i>
+            <span class="text-xs font-mono font-bold tracking-wider uppercase text-slate-300">RPAS Pilot Identification</span>
           </div>
-          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-tactical-800 text-slate-400 border border-tactical-border">ID: BR-2025-089</span>
+          <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700" id="cracha-cod-registro">ID: BR-2025-089</span>
         </div>
 
-        <div class="mt-4 flex items-start space-x-4">
-          <!-- Foto do Piloto com Atalho de Upload & Troca -->
-          <div class="relative flex-shrink-0 group cursor-pointer" onclick="triggerPhotoSelect()" title="Toque para trocar a foto">
-            <img id="pilotPhoto" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80" alt="Piloto" class="w-20 h-24 object-cover rounded-xl border-2 border-tactical-cyan/50 shadow-md">
-            
-            <!-- Botão de Câmera Sobreposto -->
-            <div class="absolute inset-0 bg-black/40 rounded-xl opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-tactical-cyan">
-              <i class="fa-solid fa-camera text-base"></i>
-            </div>
-            <span class="absolute -bottom-1.5 -right-1.5 bg-tactical-cyan text-tactical-900 text-[9px] font-bold px-1.5 py-0.5 rounded font-mono shadow">
-              <i class="fa-solid fa-camera text-[8px]"></i>
-            </span>
+        <!-- Identificação do Piloto -->
+        <div class="pt-4 flex space-x-4 items-center">
+          <div class="relative group shrink-0">
+            <img id="piloto-foto" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80" alt="Foto do Piloto" class="w-20 h-24 object-cover rounded-xl border-2 border-tactical-cyan/40 shadow-md shadow-tactical-cyan/10">
+            <label for="input-foto-upload" class="absolute -bottom-1 -right-1 bg-tactical-cyan text-tactical-dark p-1.5 rounded-full cursor-pointer shadow hover:scale-105 active:scale-95 transition-all">
+              <i data-lucide="camera" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+            </label>
+            <input type="file" id="input-foto-upload" accept="image/*" class="hidden" onchange="manipularUploadFoto(event)">
           </div>
 
-          <div class="flex-1 min-w-0 space-y-1">
-            <div class="flex items-center justify-between">
-              <span class="text-[10px] uppercase font-mono tracking-wider text-tactical-cyan font-semibold">Operador Autorizado</span>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center space-x-2">
+              <span id="cracha-status-tag" class="text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase">AUDITANDO</span>
             </div>
-            <h2 id="pilotName" class="text-lg font-bold text-white truncate">Lucas M. Silveira</h2>
-            <div class="grid grid-cols-2 gap-x-2 gap-y-1 text-xs pt-1">
+            <h2 id="cracha-nome" class="text-base font-extrabold text-white truncate mt-1">Lucas M. Silveira</h2>
+            <div class="grid grid-cols-2 gap-x-2 text-[11px] font-mono mt-1 text-slate-300">
               <div>
-                <span class="text-slate-400 text-[10px] block font-mono">CPF:</span>
-                <span id="pilotCpf" class="font-mono text-slate-200">348.918.270-44</span>
+                <span class="text-[9px] text-slate-400 uppercase block">CPF:</span>
+                <span id="cracha-cpf" class="font-bold">348.918.270-44</span>
               </div>
               <div>
-                <span class="text-slate-400 text-[10px] block font-mono">Contato:</span>
-                <span id="pilotPhone" class="font-mono text-slate-200">(11) 98765-4321</span>
-              </div>
-              <div class="col-span-2 pt-1">
-                <span class="text-slate-400 text-[10px] block font-mono">Classe Voo:</span>
-                <span class="font-semibold text-tactical-emerald">Classe 3 (&lt; 25kg) • VLOS / BVLOS</span>
+                <span class="text-[9px] text-slate-400 uppercase block">Contato:</span>
+                <span id="cracha-telefone" class="truncate block">(11) 98765-4321</span>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Equipamento Principal Vinculado -->
-        <div class="mt-4 pt-3 border-t border-tactical-border/60">
+        <!-- Aeronave Cadastrada -->
+        <div class="mt-4 pt-3 border-t border-tactical-border/70">
           <div class="flex items-center justify-between text-xs mb-2">
-            <span class="text-slate-300 font-semibold flex items-center space-x-1.5">
-              <i class="fa-solid fa-helicopter text-tactical-cyan"></i>
+            <span class="text-slate-400 font-mono text-[10px] uppercase flex items-center space-x-1">
+              <i data-lucide="plane" class="w-3.5 h-3.5 text-tactical-cyan"></i>
               <span>Equipamento Principal</span>
             </span>
-            <span class="text-[10px] font-mono px-2 py-0.5 bg-tactical-emerald/15 text-tactical-emerald rounded border border-tactical-emerald/30 font-medium">ATIVO / VISTORIADO</span>
+            <span class="text-[10px] font-mono text-tactical-emerald px-1.5 py-0.5 bg-tactical-emerald/10 rounded border border-tactical-emerald/20">ATIVO / VISTORIADO</span>
           </div>
-          
-          <div class="grid grid-cols-2 gap-2 bg-tactical-900/80 p-2.5 rounded-xl border border-tactical-border text-xs">
+
+          <div class="bg-tactical-dark/60 rounded-xl p-3 border border-slate-800 text-xs font-mono grid grid-cols-2 gap-2">
             <div>
-              <span class="text-[10px] text-slate-400 block font-mono">Modelo</span>
-              <span id="droneModel" class="font-bold text-white">DJI Mavic 3 Pro</span>
+              <p class="text-[9px] text-slate-400 uppercase">Modelo</p>
+              <p id="cracha-drone-modelo" class="font-bold text-white truncate">DJI Mavic 3 Pro</p>
             </div>
             <div>
-              <span class="text-[10px] text-slate-400 block font-mono">Registro ANAC (SISANT)</span>
-              <span id="droneSisant" class="font-mono text-tactical-cyan font-semibold">PP-314890123</span>
+              <p class="text-[9px] text-slate-400 uppercase">Registro ANAC (SISANT)</p>
+              <p id="cracha-drone-sisant" class="font-bold text-tactical-cyan truncate">PP-314890123</p>
             </div>
             <div>
-              <span class="text-[10px] text-slate-400 block font-mono">Número de Série (S/N)</span>
-              <span id="droneSn" class="font-mono text-slate-300 text-[11px]">1581F4Z7C239801A</span>
+              <p class="text-[9px] text-slate-400 uppercase">Número de Série (S/N)</p>
+              <p id="cracha-drone-serial" class="font-bold text-slate-300 truncate">1581F4Z7C239801A</p>
             </div>
             <div>
-              <span class="text-[10px] text-slate-400 block font-mono">Peso Máx. Decolagem</span>
-              <span id="droneWeight" class="font-mono text-slate-300">958g</span>
+              <p class="text-[9px] text-slate-400 uppercase">Peso Máx. Decolagem</p>
+              <p id="cracha-drone-peso" class="font-bold text-slate-300">958g</p>
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- Card Instalação PWA -->
-      <div class="bg-gradient-to-r from-tactical-800 to-tactical-850 border border-tactical-blue/40 rounded-2xl p-4 flex items-center justify-between shadow-lg">
-        <div class="flex items-center space-x-3">
-          <div class="w-10 h-10 rounded-xl bg-tactical-blue/20 border border-tactical-cyan/40 flex items-center justify-center text-tactical-cyan text-lg">
-            <i class="fa-solid fa-mobile-screen"></i>
+        <!-- Validação Fiscal do Crachá -->
+        <div class="mt-4 pt-3 border-t border-tactical-border flex items-center justify-between">
+          <div class="text-[11px] text-slate-300">
+            <span class="text-slate-400 block text-[10px]">Validação Fiscal do Crachá:</span>
+            <span class="font-mono text-tactical-cyan text-xs font-semibold">Autenticidade ICP-Gov</span>
           </div>
-          <div>
-            <h4 class="text-sm font-bold text-white flex items-center space-x-1.5">
-              <span>Instalar no Dispositivo</span>
-              <span class="text-[9px] bg-tactical-cyan/20 text-tactical-cyan px-1.5 py-0.2 rounded font-mono font-bold">PWA 100% Offline</span>
-            </h4>
-            <p class="text-xs text-slate-400">Acesse seus documentos mesmo sem sinal de celular</p>
-          </div>
-        </div>
-        <button onclick="openInstallModal()" class="px-3 py-1.5 bg-tactical-cyan text-tactical-900 font-bold text-xs rounded-xl shadow-md hover:bg-cyan-300 transition flex items-center space-x-1">
-          <i class="fa-solid fa-download"></i>
-          <span>Instalar</span>
-        </button>
-      </div>
-
-      <!-- Quick Guidance Banner -->
-      <div class="bg-tactical-800/60 rounded-xl p-3 border border-tactical-border/60 flex items-start space-x-3 text-xs text-slate-300">
-        <i class="fa-solid fa-shield-virus text-tactical-amber text-base mt-0.5"></i>
-        <div>
-          <span class="font-semibold text-white block">Para autoridades em fiscalização</span>
-          Apresente os QR Codes ou abra os arquivos em cache offline caso esteja sem sinal.
+          <button onclick="abrirModalQRCode('Crachá de Operador', 'https://sistemas.anac.gov.br/certidao-piloto?id=' + encodeURIComponent(document.getElementById('cracha-drone-sisant').innerText))" class="text-xs bg-tactical-cyan/15 hover:bg-tactical-cyan/25 text-tactical-cyan border border-tactical-cyan/40 px-3 py-1.5 rounded-lg font-mono flex items-center space-x-1.5 transition-all active:scale-95">
+            <i data-lucide="qr-code" class="w-4 h-4"></i>
+            <span>QR Code do Piloto</span>
+          </button>
         </div>
       </div>
 
-      <!-- Legal Info Footer Text -->
-      <div class="text-center pt-2">
-        <p class="text-[11px] text-slate-500 font-mono flex items-center justify-center space-x-1">
-          <i class="fa-solid fa-lock text-[10px]"></i>
-          <span>Cache local no dispositivo (IndexedDB) &amp; sincronização em nuvem</span>
+      <!-- Informativo Fiscalização -->
+      <div class="bg-tactical-panel border border-tactical-border rounded-xl p-3 text-xs text-slate-400 flex items-start space-x-3">
+        <i data-lucide="shield-alert" class="w-5 h-5 text-amber-400 shrink-0 mt-0.5"></i>
+        <p class="text-[11px] leading-relaxed">
+          <strong class="text-slate-200">Para autoridades em fiscalização:</strong> Apresente os QR Codes reais para leitura ótica ou acesse os PDFs sincronizados no Google Drive em caso de inspeção detalhada.
         </p>
-        <p class="text-[10px] text-slate-600 font-mono mt-0.5">Em conformidade com RBAC-E nº 94 (ANAC) e ICA 100-40 (DECEA)</p>
       </div>
-    </div>
-
+    </section>
 
     <!-- ========================================== -->
-    <!-- ABA 2: DOCUMENTOS REGULATÓRIOS (OFFLINE)   -->
+    <!-- ABA 2: DOCUMENTOS OBRIGATÓRIOS             -->
     <!-- ========================================== -->
-    <div id="tabDocumentos" class="hidden space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-tactical-border">
+    <section id="tab-documentos" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-base font-bold text-white flex items-center space-x-2">
-            <i class="fa-solid fa-folder-closed text-tactical-cyan"></i>
-            <span>Documentos Regulatórios</span>
-          </h2>
-          <p class="text-xs text-slate-400">Certificados obrigatórios salvos em cache offline</p>
+          <h2 class="text-base font-extrabold text-white tracking-wide">Documentos Regulatórios</h2>
+          <p class="text-xs text-slate-400 font-mono">Conformidade ANAC, ANATEL e DECEA</p>
         </div>
-        <span class="text-xs font-mono px-2 py-0.5 rounded-full bg-tactical-emerald/10 text-tactical-emerald border border-tactical-emerald/30 font-semibold">4 / 4 Prontos</span>
+        <span id="doc-counter-badge" class="text-xs font-mono px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300">
+          Carregando...
+        </span>
       </div>
 
-      <div class="space-y-3" id="documentsList">
-        <!-- Documento 1: ANAC SISANT -->
-        <div class="bg-tactical-850 border border-tactical-border rounded-xl p-3.5 space-y-3 hover:border-tactical-cyan/40 transition">
-          <div class="flex items-start justify-between">
-            <div class="flex items-start space-x-3">
-              <div class="w-9 h-9 rounded-lg bg-tactical-blue/15 border border-tactical-blue/40 flex items-center justify-center text-tactical-cyan text-sm">
-                <i class="fa-solid fa-file-shield"></i>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">Certidão de Cadastro ANAC (SISANT)</h3>
-                <p class="text-xs text-slate-400 font-mono">Registro: PP-314890123 • Mavic 3 Pro</p>
-              </div>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 bg-tactical-emerald/15 text-tactical-emerald border border-tactical-emerald/30 rounded font-semibold">Válido</span>
-          </div>
-          <div class="flex items-center justify-between pt-2 border-t border-tactical-border/60 text-xs">
-            <span class="text-[11px] text-slate-400 font-mono">Validade: <strong class="text-slate-200">18/11/2026</strong></span>
-            <div class="flex space-x-2">
-              <button onclick="showQrModal('Certidão ANAC SISANT', 'https://sistemas.anac.gov.br/certidao/PP-314890123')" class="px-2.5 py-1 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan text-xs font-semibold rounded-lg border border-tactical-border flex items-center space-x-1">
-                <i class="fa-solid fa-qrcode"></i>
-                <span>QR Code</span>
-              </button>
-              <button onclick="openFakePdf('Certidão ANAC SISANT')" class="px-2.5 py-1 bg-tactical-cyan text-tactical-900 text-xs font-bold rounded-lg hover:bg-cyan-300 flex items-center space-x-1">
-                <i class="fa-solid fa-file-pdf"></i>
-                <span>Abrir PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
+      <!-- CARDS DINÂMICOS DOS DOCUMENTOS (LINKS OCULTOS, QR CODE + BOTAO PDF VISÍVEIS) -->
+      <div id="lista-documentos-cards" class="space-y-3"></div>
 
-        <!-- Documento 2: ANATEL -->
-        <div class="bg-tactical-850 border border-tactical-border rounded-xl p-3.5 space-y-3 hover:border-tactical-cyan/40 transition">
-          <div class="flex items-start justify-between">
-            <div class="flex items-start space-x-3">
-              <div class="w-9 h-9 rounded-lg bg-tactical-blue/15 border border-tactical-blue/40 flex items-center justify-center text-tactical-cyan text-sm">
-                <i class="fa-solid fa-tower-broadcast"></i>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">Homologação de Rádiofrequência ANATEL</h3>
-                <p class="text-xs text-slate-400 font-mono">Certificado nº 04821-21-07248</p>
-              </div>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 bg-tactical-emerald/15 text-tactical-emerald border border-tactical-emerald/30 rounded font-semibold">Vitalício</span>
-          </div>
-          <div class="flex items-center justify-between pt-2 border-t border-tactical-border/60 text-xs">
-            <span class="text-[11px] text-slate-400 font-mono">Conformidade: <strong class="text-slate-200">Definitiva</strong></span>
-            <div class="flex space-x-2">
-              <button onclick="showQrModal('Homologação ANATEL', 'https://sistemas.anatel.gov.br/mosaico/048212107248')" class="px-2.5 py-1 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan text-xs font-semibold rounded-lg border border-tactical-border flex items-center space-x-1">
-                <i class="fa-solid fa-qrcode"></i>
-                <span>QR Code</span>
-              </button>
-              <button onclick="openFakePdf('Certificado ANATEL')" class="px-2.5 py-1 bg-tactical-cyan text-tactical-900 text-xs font-bold rounded-lg hover:bg-cyan-300 flex items-center space-x-1">
-                <i class="fa-solid fa-file-pdf"></i>
-                <span>Abrir PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Documento 3: Seguro RETA -->
-        <div class="bg-tactical-850 border border-tactical-border rounded-xl p-3.5 space-y-3 hover:border-tactical-cyan/40 transition">
-          <div class="flex items-start justify-between">
-            <div class="flex items-start space-x-3">
-              <div class="w-9 h-9 rounded-lg bg-tactical-blue/15 border border-tactical-blue/40 flex items-center justify-center text-tactical-cyan text-sm">
-                <i class="fa-solid fa-file-invoice-dollar"></i>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">Apólice de Seguro Obrigatório RETA</h3>
-                <p class="text-xs text-slate-400 font-mono">Porto Seguro • Apólice: 054.910.442</p>
-              </div>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 bg-tactical-amber/15 text-tactical-amber border border-tactical-amber/30 rounded font-semibold">Expira em 42 dias</span>
-          </div>
-          <div class="flex items-center justify-between pt-2 border-t border-tactical-border/60 text-xs">
-            <span class="text-[11px] text-slate-400 font-mono">Vencimento: <strong class="text-tactical-amber">28/05/2025</strong></span>
-            <div class="flex space-x-2">
-              <button onclick="showQrModal('Seguro RETA', 'https://portoseguro.com.br/apolice/054910442')" class="px-2.5 py-1 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan text-xs font-semibold rounded-lg border border-tactical-border flex items-center space-x-1">
-                <i class="fa-solid fa-qrcode"></i>
-                <span>QR Code</span>
-              </button>
-              <button onclick="openFakePdf('Apólice Seguro RETA')" class="px-2.5 py-1 bg-tactical-cyan text-tactical-900 text-xs font-bold rounded-lg hover:bg-cyan-300 flex items-center space-x-1">
-                <i class="fa-solid fa-file-pdf"></i>
-                <span>Abrir PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Documento 4: SARPAS / DECEA -->
-        <div class="bg-tactical-850 border border-tactical-border rounded-xl p-3.5 space-y-3 hover:border-tactical-cyan/40 transition">
-          <div class="flex items-start justify-between">
-            <div class="flex items-start space-x-3">
-              <div class="w-9 h-9 rounded-lg bg-tactical-blue/15 border border-tactical-blue/40 flex items-center justify-center text-tactical-cyan text-sm">
-                <i class="fa-solid fa-plane-departure"></i>
-              </div>
-              <div>
-                <h3 class="text-sm font-bold text-white">Cadastro de Piloto DECEA (SARPAS NG)</h3>
-                <p class="text-xs text-slate-400 font-mono">Código Operador: DECEA-PIL-88219</p>
-              </div>
-            </div>
-            <span class="text-[10px] font-mono px-2 py-0.5 bg-tactical-emerald/15 text-tactical-emerald border border-tactical-emerald/30 rounded font-semibold">Ativo</span>
-          </div>
-          <div class="flex items-center justify-between pt-2 border-t border-tactical-border/60 text-xs">
-            <span class="text-[11px] text-slate-400 font-mono">Certificação: <strong class="text-slate-200">ICA 100-40</strong></span>
-            <div class="flex space-x-2">
-              <button onclick="showQrModal('Cadastro SARPAS DECEA', 'https://sarpas.decea.mil.br/operador/DECEA-PIL-88219')" class="px-2.5 py-1 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan text-xs font-semibold rounded-lg border border-tactical-border flex items-center space-x-1">
-                <i class="fa-solid fa-qrcode"></i>
-                <span>QR Code</span>
-              </button>
-              <button onclick="openFakePdf('Cadastro SARPAS')" class="px-2.5 py-1 bg-tactical-cyan text-tactical-900 text-xs font-bold rounded-lg hover:bg-cyan-300 flex items-center space-x-1">
-                <i class="fa-solid fa-file-pdf"></i>
-                <span>Abrir PDF</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Botão Voltar ao Crachá -->
-      <div class="pt-4">
-        <button onclick="switchTab('cracha')" class="w-full py-3 bg-tactical-800 hover:bg-tactical-700 border border-tactical-border hover:border-tactical-cyan/40 text-slate-300 hover:text-white rounded-xl font-semibold text-xs transition flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-arrow-left"></i>
+      <!-- BOTÃO VOLTAR AO CRACHÁ -->
+      <div class="pt-2">
+        <button onclick="mudarAba('cracha')" class="w-full bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white py-3 rounded-xl font-mono text-xs flex items-center justify-center space-x-2 transition-all active:scale-98">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
           <span>Voltar ao Crachá</span>
         </button>
       </div>
-    </div>
-
+    </section>
 
     <!-- ========================================== -->
-    <!-- ABA 3: CHECKLIST PRÉ-VOO (CRUD INTERATIVO) -->
+    <!-- ABA 3: AJUSTES & CONFIGURAÇÕES (PROTEGIDO) -->
     <!-- ========================================== -->
-    <div id="tabChecklist" class="hidden space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-tactical-border">
+    <section id="tab-ajustes" class="hidden space-y-4">
+      <div class="flex items-center justify-between">
         <div>
-          <h2 class="text-base font-bold text-white flex items-center space-x-2">
-            <i class="fa-solid fa-list-check text-tactical-cyan"></i>
-            <span>Checklist Pré-Voo</span>
-          </h2>
-          <p class="text-xs text-slate-400">Inspeção física, aviônica e de segurança operacional</p>
+          <h2 class="text-base font-extrabold text-white tracking-wide">Painel de Ajustes</h2>
+          <p class="text-xs text-slate-400 font-mono">Dados cadastrais, links do Drive e segurança</p>
         </div>
-        <button onclick="openAddItemModal()" class="px-2.5 py-1.5 bg-tactical-cyan text-tactical-900 font-bold text-xs rounded-xl hover:bg-cyan-300 transition flex items-center space-x-1">
-          <i class="fa-solid fa-plus"></i>
-          <span>Novo Item</span>
+        <button onclick="bloquearPainelAjustes()" class="text-xs font-mono text-rose-400 hover:text-rose-300 flex items-center space-x-1 bg-rose-500/10 border border-rose-500/30 px-2.5 py-1 rounded-full">
+          <i data-lucide="lock" class="w-3.5 h-3.5"></i>
+          <span>Bloquear</span>
         </button>
       </div>
 
-      <!-- Barra de Progresso do Checklist -->
-      <div class="bg-tactical-850 p-3 rounded-xl border border-tactical-border space-y-2">
-        <div class="flex justify-between items-center text-xs font-mono">
-          <span class="text-slate-300">Status da Vistoria:</span>
-          <span id="checklistProgressText" class="text-tactical-cyan font-bold">0 de 5 Concluídos (0%)</span>
-        </div>
-        <div class="w-full h-2 bg-tactical-900 rounded-full overflow-hidden border border-tactical-border/80">
-          <div id="checklistProgressBar" class="h-full bg-gradient-to-r from-tactical-blue to-tactical-cyan transition-all duration-300" style="width: 0%"></div>
-        </div>
-      </div>
+      <form id="form-ajustes-perfil" onsubmit="salvarAjustesPerfil(event)" class="space-y-4">
+        
+        <!-- OPERADOR -->
+        <div class="bg-tactical-card border border-tactical-border rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan flex items-center space-x-1.5">
+            <i data-lucide="user" class="w-3.5 h-3.5"></i>
+            <span>Identificação do Operador</span>
+          </h3>
 
-      <!-- Lista Dinâmica de Itens CRUD -->
-      <div id="checklistContainer" class="space-y-2">
-        <!-- Renderizado dinamicamente via JS -->
-      </div>
+          <div class="space-y-2 text-xs">
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-1">Nome Completo</label>
+              <input type="text" id="edit-nome" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="block text-slate-400 text-[11px] mb-1">CPF</label>
+                <input type="text" id="edit-cpf" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+              </div>
+              <div>
+                <label class="block text-slate-400 text-[11px] mb-1">Telefone de Contato</label>
+                <input type="text" id="edit-telefone" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <!-- Botão Voltar ao Crachá -->
-      <div class="pt-4">
-        <button onclick="switchTab('cracha')" class="w-full py-3 bg-tactical-800 hover:bg-tactical-700 border border-tactical-border hover:border-tactical-cyan/40 text-slate-300 hover:text-white rounded-xl font-semibold text-xs transition flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-arrow-left"></i>
+        <!-- AERONAVE -->
+        <div class="bg-tactical-card border border-tactical-border rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan flex items-center space-x-1.5">
+            <i data-lucide="plane" class="w-3.5 h-3.5"></i>
+            <span>Aeronave Cadastrada</span>
+          </h3>
+
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-1">Modelo da Aeronave</label>
+              <input type="text" id="edit-drone-modelo" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-1">Registro ANAC SISANT</label>
+              <input type="text" id="edit-drone-sisant" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-1">Número de Série (S/N)</label>
+              <input type="text" id="edit-drone-serial" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+            </div>
+            <div>
+              <label class="block text-slate-400 text-[11px] mb-1">Peso Máx. Decolagem</label>
+              <input type="text" id="edit-drone-peso" required class="w-full bg-tactical-dark border border-slate-700 rounded-lg px-3 py-2 text-white font-mono focus:border-tactical-cyan focus:outline-none">
+            </div>
+          </div>
+        </div>
+
+        <!-- VALIDADES E LINKS GOOGLE DRIVE -->
+        <div class="bg-tactical-card border border-tactical-border rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan flex items-center space-x-1.5">
+            <i data-lucide="file-check" class="w-3.5 h-3.5"></i>
+            <span>Validades & Links Google Drive</span>
+          </h3>
+          <p class="text-[11px] text-slate-400">Insira a data e o link do PDF no Google Drive para cada documento.</p>
+
+          <div class="space-y-3 text-xs">
+            <!-- ANAC -->
+            <div class="p-2.5 rounded-lg bg-tactical-dark/70 border border-slate-800 space-y-2">
+              <span class="text-white font-mono font-bold block">1. Certidão ANAC (SISANT)</span>
+              <div class="grid grid-cols-1 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Validade:</label>
+                  <input type="date" id="edit-data-anac" class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Link Google Drive (PDF):</label>
+                  <input type="url" id="edit-link-anac" placeholder="https://drive.google.com/file/d/..." class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- ANATEL -->
+            <div class="p-2.5 rounded-lg bg-tactical-dark/70 border border-slate-800 space-y-2">
+              <span class="text-white font-mono font-bold block">2. Certificado ANATEL</span>
+              <div class="grid grid-cols-1 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Validade:</label>
+                  <input type="date" id="edit-data-anatel" class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Link Google Drive (PDF):</label>
+                  <input type="url" id="edit-link-anatel" placeholder="https://drive.google.com/file/d/..." class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- RETA -->
+            <div class="p-2.5 rounded-lg bg-tactical-dark/70 border border-slate-800 space-y-2">
+              <span class="text-white font-mono font-bold block">3. Seguro RETA</span>
+              <div class="grid grid-cols-1 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Validade:</label>
+                  <input type="date" id="edit-data-reta" class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Link Google Drive (PDF):</label>
+                  <input type="url" id="edit-link-reta" placeholder="https://drive.google.com/file/d/..." class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- SARPAS -->
+            <div class="p-2.5 rounded-lg bg-tactical-dark/70 border border-slate-800 space-y-2">
+              <span class="text-white font-mono font-bold block">4. Autorização SARPAS DECEA</span>
+              <div class="grid grid-cols-1 gap-2">
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Validade:</label>
+                  <input type="date" id="edit-data-sarpas" class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+                <div>
+                  <label class="text-[10px] text-slate-400 block mb-0.5">Link Google Drive (PDF):</label>
+                  <input type="url" id="edit-link-sarpas" placeholder="https://drive.google.com/file/d/..." class="w-full bg-tactical-panel border border-slate-700 rounded-lg px-2 py-1 text-white font-mono text-xs focus:border-tactical-cyan focus:outline-none">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- SEGURANÇA E PIN -->
+        <div class="bg-tactical-card border border-tactical-border rounded-xl p-4 space-y-3">
+          <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan flex items-center space-x-1.5">
+            <i data-lucide="shield" class="w-3.5 h-3.5"></i>
+            <span>Segurança do Aplicativo</span>
+          </h3>
+
+          <div class="space-y-3 text-xs">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-bold text-white">Biometria (Face ID / Digital)</p>
+                <p class="text-[10px] text-slate-400">Permitir liberar ajustes por sensor</p>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="edit-biometria-habilitada" class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:width-5 after:transition-all peer-checked:bg-tactical-cyan"></div>
+              </label>
+            </div>
+
+            <div class="pt-2 border-t border-slate-800">
+              <label class="block text-slate-400 text-[11px] mb-1">Alterar PIN de Acesso (4 dígitos)</label>
+              <div class="flex space-x-2">
+                <input type="password" id="edit-novo-pin" maxlength="4" placeholder="Novo PIN" class="w-28 bg-tactical-dark border border-slate-700 rounded-lg px-3 py-1.5 text-center text-white font-mono tracking-widest text-sm focus:border-tactical-cyan focus:outline-none">
+                <button type="button" onclick="alterarPIN()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 px-3 py-1.5 rounded-lg text-xs font-mono">
+                  Definir PIN
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTÃO SALVAR -->
+        <button type="submit" class="w-full bg-tactical-cyan hover:bg-cyan-400 text-tactical-dark font-extrabold py-3 rounded-xl text-sm shadow-lg shadow-tactical-cyan/20 transition-all active:scale-98 flex items-center justify-center space-x-2">
+          <i data-lucide="save" class="w-4 h-4 stroke-[2.5]"></i>
+          <span>Salvar Alterações no Dispositivo</span>
+        </button>
+      </form>
+
+      <!-- BOTÃO VOLTAR -->
+      <div class="pt-1">
+        <button onclick="mudarAba('cracha')" class="w-full bg-slate-800/90 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white py-3 rounded-xl font-mono text-xs flex items-center justify-center space-x-2 transition-all active:scale-98">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i>
           <span>Voltar ao Crachá</span>
         </button>
       </div>
-    </div>
-
-
-    <!-- ========================================== -->
-    <!-- ABA 4: AJUSTES & CONFIGURAÇÕES             -->
-    <!-- ========================================== -->
-    <div id="tabAjustes" class="hidden space-y-4">
-      <div class="flex items-center justify-between pb-2 border-b border-tactical-border">
-        <div>
-          <h2 class="text-base font-bold text-white flex items-center space-x-2">
-            <i class="fa-solid fa-sliders text-tactical-cyan"></i>
-            <span>Painel de Ajustes</span>
-          </h2>
-          <p class="text-xs text-slate-400">Edição de dados cadastrais, foto, segurança e sincronização</p>
-        </div>
-        <span class="text-[10px] font-mono px-2 py-0.5 bg-tactical-cyan/15 text-tactical-cyan border border-tactical-cyan/30 rounded font-semibold">Autenticado</span>
-      </div>
-
-      <!-- Seção: Foto do Piloto (Upload + Enquadramento) -->
-      <div class="bg-tactical-850 p-4 rounded-xl border border-tactical-border space-y-3">
-        <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan tracking-wider flex items-center space-x-1.5">
-          <i class="fa-solid fa-camera"></i>
-          <span>Foto de Identificação do Operador</span>
-        </h3>
-        
-        <div class="flex items-center space-x-4">
-          <img id="settingsPilotPreview" src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80" alt="Preview" class="w-16 h-20 object-cover rounded-xl border-2 border-tactical-cyan/40 shadow">
-          
-          <div class="space-y-2 flex-1">
-            <div class="flex flex-wrap gap-2">
-              <button onclick="triggerPhotoSelect()" class="px-3 py-1.5 bg-tactical-cyan hover:bg-cyan-300 text-tactical-900 font-bold text-xs rounded-lg transition flex items-center space-x-1.5 shadow">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                <span>Escolher Nova Foto</span>
-              </button>
-              <button onclick="resetDefaultPhoto()" class="px-3 py-1.5 bg-tactical-800 hover:bg-tactical-700 text-slate-300 hover:text-white border border-tactical-border text-xs font-semibold rounded-lg transition">
-                Restaurar Padrão
-              </button>
-            </div>
-            <p class="text-[10px] text-slate-400 font-mono">Formatos JPG ou PNG. Você poderá ajustar o enquadramento antes de salvar.</p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Formulário de Dados Cadastrais -->
-      <div class="bg-tactical-850 p-4 rounded-xl border border-tactical-border space-y-3">
-        <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan tracking-wider flex items-center space-x-1.5">
-          <i class="fa-solid fa-user-pen"></i>
-          <span>Dados do Piloto</span>
-        </h3>
-        
-        <div class="space-y-2 text-xs">
-          <div>
-            <label class="block text-slate-400 text-[11px] mb-1 font-mono">Nome Completo</label>
-            <input type="text" id="inputPilotName" value="Lucas M. Silveira" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-medium">
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">CPF</label>
-              <input type="text" id="inputPilotCpf" value="348.918.270-44" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-mono">
-            </div>
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Telefone</label>
-              <input type="text" id="inputPilotPhone" value="(11) 98765-4321" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-mono">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Formulário de Dados da Aeronave -->
-      <div class="bg-tactical-850 p-4 rounded-xl border border-tactical-border space-y-3">
-        <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan tracking-wider flex items-center space-x-1.5">
-          <i class="fa-solid fa-helicopter"></i>
-          <span>Dados do Equipamento (Drone)</span>
-        </h3>
-        
-        <div class="space-y-2 text-xs">
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Modelo</label>
-              <input type="text" id="inputDroneModel" value="DJI Mavic 3 Pro" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-medium">
-            </div>
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Registro ANAC</label>
-              <input type="text" id="inputDroneSisant" value="PP-314890123" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-mono">
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Número de Série (S/N)</label>
-              <input type="text" id="inputDroneSn" value="1581F4Z7C239801A" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-mono">
-            </div>
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Peso Máx. (g)</label>
-              <input type="text" id="inputDroneWeight" value="958g" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-mono">
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Configuração de Sincronização Offline Automática -->
-      <div class="bg-tactical-850 p-4 rounded-xl border border-tactical-border space-y-3">
-        <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan tracking-wider flex items-center justify-between">
-          <span class="flex items-center space-x-1.5">
-            <i class="fa-solid fa-cloud-arrow-down"></i>
-            <span>Sincronização &amp; Armazenamento Offline</span>
-          </span>
-          <span class="text-[10px] text-tactical-emerald font-mono">IndexedDB Ativo</span>
-        </h3>
-
-        <div class="space-y-3 text-xs">
-          <div class="flex items-center justify-between bg-tactical-900 p-2.5 rounded-lg border border-tactical-border">
-            <div>
-              <span class="font-semibold text-white block">Sincronização Automática</span>
-              <span class="text-[11px] text-slate-400">Atualizar dados ao detectar conexão com a internet</span>
-            </div>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input type="checkbox" id="autoSyncToggle" checked class="sr-only peer">
-              <div class="w-11 h-6 bg-tactical-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-tactical-cyan"></div>
-            </label>
-          </div>
-
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Frequência de Sync</label>
-              <select class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-2.5 py-2 text-white focus:outline-none focus:border-tactical-cyan text-xs">
-                <option>Ao reconectar (Tempo Real)</option>
-                <option>A cada 1 hora</option>
-                <option>A cada 6 horas</option>
-                <option>Apenas Manual</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-slate-400 text-[11px] mb-1 font-mono">Rede Permitida</label>
-              <select class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-2.5 py-2 text-white focus:outline-none focus:border-tactical-cyan text-xs">
-                <option>Qualquer Rede (4G/5G/Wi-Fi)</option>
-                <option>Apenas Wi-Fi</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="pt-1 flex items-center justify-between">
-            <span id="lastSyncLabel" class="text-[11px] text-slate-400 font-mono">Última sincronização: Há instantes</span>
-            <button onclick="triggerManualSync()" id="btnSyncNow" class="px-3 py-1.5 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan text-xs font-semibold rounded-lg border border-tactical-border flex items-center space-x-1.5 transition">
-              <i class="fa-solid fa-arrows-rotate"></i>
-              <span>Sincronizar Agora</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Configuração de Segurança (PIN) -->
-      <div class="bg-tactical-850 p-4 rounded-xl border border-tactical-border space-y-3">
-        <h3 class="text-xs font-mono font-bold uppercase text-tactical-cyan tracking-wider flex items-center space-x-1.5">
-          <i class="fa-solid fa-lock"></i>
-          <span>Segurança &amp; PIN de Acesso</span>
-        </h3>
-        
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <label class="block text-slate-400 text-[11px] mb-1 font-mono">Novo PIN (4 dígitos)</label>
-            <input type="password" id="inputNewPin" maxlength="4" placeholder="1234" class="w-full bg-tactical-900 border border-tactical-border rounded-lg px-3 py-2 text-white focus:outline-none focus:border-tactical-cyan font-mono text-center tracking-widest">
-          </div>
-          <div class="flex items-end">
-            <button onclick="saveNewPin()" class="w-full py-2 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan font-semibold rounded-lg border border-tactical-border text-xs transition">
-              Atualizar PIN
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Botões de Ação do Painel -->
-      <div class="space-y-2 pt-2">
-        <button onclick="saveSettingsData()" class="w-full py-3 bg-tactical-cyan text-tactical-900 font-bold rounded-xl hover:bg-cyan-300 transition flex items-center justify-center space-x-2 shadow-lg">
-          <i class="fa-solid fa-floppy-disk"></i>
-          <span>Salvar Alterações</span>
-        </button>
-
-        <button onclick="switchTab('cracha')" class="w-full py-3 bg-tactical-800 hover:bg-tactical-700 border border-tactical-border hover:border-tactical-cyan/40 text-slate-300 hover:text-white rounded-xl font-semibold text-xs transition flex items-center justify-center space-x-2">
-          <i class="fa-solid fa-arrow-left"></i>
-          <span>Voltar ao Crachá</span>
-        </button>
-      </div>
-    </div>
+    </section>
 
   </main>
 
-
   <!-- ========================================== -->
-  <!-- BARRA DE NAVEGAÇÃO INFERIOR FIXA (BOTTOM)  -->
+  <!-- BARRA DE NAVEGAÇÃO INFERIOR FIXA (3 ABAS)  -->
   <!-- ========================================== -->
-  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-tactical-900/95 backdrop-blur-lg border-t border-tactical-border py-2 px-4 shadow-2xl">
-    <div class="max-w-xl mx-auto grid grid-cols-4 gap-1">
+  <nav class="fixed bottom-0 left-0 right-0 z-40 bg-tactical-dark/95 backdrop-blur border-t border-tactical-border safe-bottom">
+    <div class="max-w-md mx-auto grid grid-cols-3 px-4 py-2">
       
-      <!-- Tab 1: Crachá -->
-      <button id="navBtn-cracha" onclick="switchTab('cracha')" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition text-tactical-cyan bg-tactical-800/80 border border-tactical-cyan/30">
-        <i class="fa-solid fa-id-card text-base"></i>
-        <span class="text-[10px] font-medium mt-1 font-mono">Crachá</span>
+      <!-- TAB 1: CRACHÁ -->
+      <button onclick="mudarAba('cracha')" id="nav-btn-cracha" class="flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-tactical-cyan transition-all">
+        <i data-lucide="id-card" class="w-5 h-5"></i>
+        <span class="text-[11px] font-mono font-bold mt-1 tracking-tight">Crachá</span>
       </button>
 
-      <!-- Tab 2: Documentos -->
-      <button id="navBtn-documentos" onclick="switchTab('documentos')" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition text-slate-400 hover:text-slate-200">
+      <!-- TAB 2: DOCUMENTOS -->
+      <button onclick="mudarAba('documentos')" id="nav-btn-documentos" class="flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-slate-400 hover:text-slate-200 transition-all">
         <div class="relative">
-          <i class="fa-solid fa-folder-closed text-base"></i>
-          <span class="absolute -top-1 -right-2 bg-tactical-blue text-[9px] text-white px-1 rounded-full font-mono font-bold">4</span>
+          <i data-lucide="folder-check" class="w-5 h-5"></i>
+          <span id="nav-doc-badge" class="hidden absolute -top-1 -right-2.5 text-[9px] font-mono px-1 rounded-full bg-tactical-rose text-white font-bold leading-tight">!</span>
         </div>
-        <span class="text-[10px] font-medium mt-1 font-mono">Documentos</span>
+        <span class="text-[11px] font-mono mt-1 tracking-tight">Documentos</span>
       </button>
 
-      <!-- Tab 3: Checklist -->
-      <button id="navBtn-checklist" onclick="switchTab('checklist')" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition text-slate-400 hover:text-slate-200">
-        <div class="relative">
-          <i class="fa-solid fa-list-check text-base"></i>
-          <span id="navChecklistBadge" class="absolute -top-1 -right-2 bg-tactical-emerald text-[9px] text-black px-1 rounded-full font-mono font-bold">0/5</span>
-        </div>
-        <span class="text-[10px] font-medium mt-1 font-mono">Checklist</span>
-      </button>
-
-      <!-- Tab 4: Ajustes -->
-      <button id="navBtn-ajustes" onclick="handleAjustesClick()" class="flex flex-col items-center justify-center py-1.5 rounded-xl transition text-slate-400 hover:text-slate-200">
-        <i class="fa-solid fa-sliders text-base"></i>
-        <span class="text-[10px] font-medium mt-1 font-mono">Ajustes</span>
+      <!-- TAB 3: AJUSTES -->
+      <button onclick="solicitarAcessoAjustes()" id="nav-btn-ajustes" class="flex flex-col items-center justify-center py-1.5 px-2 rounded-xl text-slate-400 hover:text-slate-200 transition-all">
+        <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+        <span class="text-[11px] font-mono mt-1 tracking-tight">Ajustes</span>
       </button>
 
     </div>
   </nav>
 
-
   <!-- ========================================== -->
-  <!-- INPUT OCULTO DE ARQUIVO                    -->
+  <!-- MODAL: PIN DE SEGURANÇA E BIOMETRIA        -->
   <!-- ========================================== -->
-  <input type="file" id="hiddenPhotoInput" accept="image/*" class="hidden" onchange="handlePhotoSelected(event)">
-
-
-  <!-- ========================================== -->
-  <!-- MODAL: ENQUADRAMENTO E RECORTE (CROPPER)   -->
-  <!-- ========================================== -->
-  <div id="cropModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="w-full max-w-sm bg-tactical-850 border border-tactical-border rounded-2xl p-5 shadow-2xl space-y-4">
-      
-      <div class="flex justify-between items-center pb-2 border-b border-tactical-border">
-        <div class="flex items-center space-x-2">
-          <i class="fa-solid fa-crop-simple text-tactical-cyan text-sm"></i>
-          <span class="text-xs font-mono font-bold text-white uppercase">Enquadrar Foto 3:4</span>
-        </div>
-        <button onclick="closeCropModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-
-      <!-- Área de Visualização do Corte -->
-      <div class="relative w-48 h-64 mx-auto rounded-xl overflow-hidden border-2 border-tactical-cyan/60 bg-black shadow-inner flex items-center justify-center">
-        <canvas id="cropCanvas" width="240" height="320" class="w-full h-full object-cover"></canvas>
-        
-        <!-- Retículo / Guia Aviônica Tática -->
-        <div class="absolute inset-0 pointer-events-none border border-tactical-cyan/20">
-          <div class="absolute top-1/3 left-0 right-0 border-t border-dashed border-tactical-cyan/30"></div>
-          <div class="absolute top-2/3 left-0 right-0 border-t border-dashed border-tactical-cyan/30"></div>
-          <div class="absolute left-1/3 top-0 bottom-0 border-l border-dashed border-tactical-cyan/30"></div>
-          <div class="absolute left-2/3 top-0 bottom-0 border-l border-dashed border-tactical-cyan/30"></div>
-        </div>
-      </div>
-
-      <!-- Controles de Ajuste Rápido -->
-      <div class="space-y-3 bg-tactical-900/80 p-3 rounded-xl border border-tactical-border text-xs">
-        <div>
-          <div class="flex justify-between text-[11px] text-slate-300 font-mono mb-1">
-            <span><i class="fa-solid fa-magnifying-glass-plus mr-1"></i>Zoom</span>
-            <span id="zoomValLabel">1.0x</span>
-          </div>
-          <input type="range" id="cropZoom" min="1" max="3" step="0.05" value="1" oninput="updateCropCanvas()" class="w-full accent-tactical-cyan cursor-pointer">
-        </div>
-
-        <div class="grid grid-cols-2 gap-2">
-          <div>
-            <span class="text-[10px] text-slate-400 block font-mono mb-1">Posição X</span>
-            <input type="range" id="cropPanX" min="-100" max="100" step="1" value="0" oninput="updateCropCanvas()" class="w-full accent-tactical-cyan cursor-pointer">
-          </div>
-          <div>
-            <span class="text-[10px] text-slate-400 block font-mono mb-1">Posição Y</span>
-            <input type="range" id="cropPanY" min="-100" max="100" step="1" value="0" oninput="updateCropCanvas()" class="w-full accent-tactical-cyan cursor-pointer">
-          </div>
-        </div>
-
-        <div class="flex justify-between items-center pt-1 border-t border-tactical-border/60">
-          <button onclick="rotateCropImage()" class="px-2.5 py-1 bg-tactical-800 hover:bg-tactical-700 text-tactical-cyan font-mono text-[11px] rounded border border-tactical-border flex items-center space-x-1">
-            <i class="fa-solid fa-rotate-right"></i>
-            <span>Girar 90°</span>
-          </button>
-          <button onclick="resetCropControls()" class="text-slate-400 hover:text-white font-mono text-[11px]">
-            Centralizar
-          </button>
-        </div>
-      </div>
-
-      <!-- Botões de Ação do Corte -->
-      <div class="grid grid-cols-2 gap-2 pt-1">
-        <button onclick="closeCropModal()" class="py-2.5 bg-tactical-800 hover:bg-tactical-700 text-slate-300 font-semibold rounded-xl text-xs border border-tactical-border transition">
-          Cancelar
-        </button>
-        <button onclick="saveCroppedPhoto()" class="py-2.5 bg-tactical-cyan hover:bg-cyan-300 text-tactical-900 font-bold rounded-xl text-xs transition flex items-center justify-center space-x-1.5 shadow-lg">
-          <i class="fa-solid fa-check"></i>
-          <span>Confirmar Foto</span>
-        </button>
-      </div>
-
-    </div>
-  </div>
-
-
-  <!-- ========================================== -->
-  <!-- MODAL: AUTENTICAÇÃO COM PIN E BIOMETRIA   -->
-  <!-- ========================================== -->
-  <div id="pinModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="w-full max-w-sm bg-tactical-850 border border-tactical-border rounded-2xl p-6 shadow-2xl space-y-5 text-center">
-      
-      <div class="w-12 h-12 rounded-full bg-tactical-blue/20 border border-tactical-cyan/40 text-tactical-cyan flex items-center justify-center mx-auto text-xl">
-        <i class="fa-solid fa-fingerprint"></i>
+  <div id="modal-pin" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-tactical-card border border-tactical-border w-full max-w-xs rounded-2xl p-5 shadow-2xl text-center space-y-4">
+      <div class="w-12 h-12 rounded-full bg-tactical-cyan/15 border border-tactical-cyan/30 text-tactical-cyan mx-auto flex items-center justify-center">
+        <i data-lucide="shield-check" class="w-6 h-6"></i>
       </div>
 
       <div>
-        <h3 class="text-base font-bold text-white">Acesso ao Painel de Ajustes</h3>
-        <p class="text-xs text-slate-400 mt-0.5">Insira o PIN de 4 dígitos ou utilize biometria</p>
+        <h3 class="text-base font-bold text-white">Acesso aos Ajustes</h3>
+        <p class="text-xs text-slate-400 mt-0.5">Digite o PIN de 4 dígitos ou use Biometria</p>
       </div>
 
-      <!-- PIN Display Dots -->
-      <div class="flex justify-center items-center space-x-3 py-2">
-        <div id="dot-0" class="w-3.5 h-3.5 rounded-full border-2 border-tactical-cyan/40 transition-all"></div>
-        <div id="dot-1" class="w-3.5 h-3.5 rounded-full border-2 border-tactical-cyan/40 transition-all"></div>
-        <div id="dot-2" class="w-3.5 h-3.5 rounded-full border-2 border-tactical-cyan/40 transition-all"></div>
-        <div id="dot-3" class="w-3.5 h-3.5 rounded-full border-2 border-tactical-cyan/40 transition-all"></div>
+      <div class="flex justify-center space-x-3 py-1">
+        <div id="pin-dot-1" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600"></div>
+        <div id="pin-dot-2" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600"></div>
+        <div id="pin-dot-3" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600"></div>
+        <div id="pin-dot-4" class="w-3.5 h-3.5 rounded-full border-2 border-slate-600"></div>
       </div>
 
-      <!-- Teclado Numérico Virtual -->
-      <div class="grid grid-cols-3 gap-2.5 max-w-[240px] mx-auto pt-2">
-        <button onclick="pressPinDigit('1')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">1</button>
-        <button onclick="pressPinDigit('2')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">2</button>
-        <button onclick="pressPinDigit('3')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">3</button>
-        <button onclick="pressPinDigit('4')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">4</button>
-        <button onclick="pressPinDigit('5')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">5</button>
-        <button onclick="pressPinDigit('6')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">6</button>
-        <button onclick="pressPinDigit('7')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">7</button>
-        <button onclick="pressPinDigit('8')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">8</button>
-        <button onclick="pressPinDigit('9')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">9</button>
-        
-        <button onclick="triggerBiometricAuth()" title="Biometria" class="h-12 rounded-xl bg-tactical-blue/20 hover:bg-tactical-blue/30 text-tactical-cyan border border-tactical-cyan/40 active:scale-95 transition flex items-center justify-center">
-          <i class="fa-solid fa-fingerprint text-xl"></i>
+      <div class="grid grid-cols-3 gap-2 pt-1 font-mono">
+        <button onclick="teclarPIN('1')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">1</button>
+        <button onclick="teclarPIN('2')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">2</button>
+        <button onclick="teclarPIN('3')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">3</button>
+        <button onclick="teclarPIN('4')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">4</button>
+        <button onclick="teclarPIN('5')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">5</button>
+        <button onclick="teclarPIN('6')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">6</button>
+        <button onclick="teclarPIN('7')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">7</button>
+        <button onclick="teclarPIN('8')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">8</button>
+        <button onclick="teclarPIN('9')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">9</button>
+        <button onclick="autenticarBiometria()" id="btn-biometria-modal" title="Biometria" class="h-12 rounded-xl bg-tactical-cyan/15 hover:bg-tactical-cyan/25 text-tactical-cyan flex items-center justify-center transition-all">
+          <i data-lucide="fingerprint" class="w-6 h-6"></i>
         </button>
-        <button onclick="pressPinDigit('0')" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-lg font-mono font-bold text-white border border-tactical-border active:scale-95 transition">0</button>
-        <button onclick="pressPinBackspace()" title="Apagar" class="h-12 rounded-xl bg-tactical-800 hover:bg-tactical-700 text-slate-400 hover:text-white border border-tactical-border active:scale-95 transition flex items-center justify-center">
-          <i class="fa-solid fa-delete-left text-lg"></i>
+        <button onclick="teclarPIN('0')" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 active:bg-tactical-cyan/20 text-white text-lg font-bold transition-all">0</button>
+        <button onclick="apagarPIN()" title="Apagar" class="h-12 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-rose-400 flex items-center justify-center transition-all">
+          <i data-lucide="delete" class="w-5 h-5"></i>
         </button>
       </div>
 
       <div class="flex items-center justify-between pt-2 text-xs">
-        <button onclick="recoverPinPrompt()" class="text-slate-400 hover:text-tactical-cyan font-mono text-[11px]">Esqueceu o PIN?</button>
-        <button onclick="closePinModal()" class="text-slate-400 hover:text-white font-mono text-[11px]">Cancelar</button>
+        <button onclick="recuperarPIN()" class="text-slate-400 hover:text-tactical-cyan">Esqueceu o PIN?</button>
+        <button onclick="fecharModalPIN()" class="text-rose-400 hover:text-rose-300 font-bold">Cancelar</button>
       </div>
     </div>
   </div>
 
-
   <!-- ========================================== -->
-  <!-- MODAL: QR CODE PARA FISCALIZAÇÃO           -->
+  <!-- MODAL: QR CODE AMPLIADO PARA FISCALIZAÇÃO  -->
   <!-- ========================================== -->
-  <div id="qrModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="w-full max-w-sm bg-tactical-850 border border-tactical-border rounded-2xl p-6 text-center space-y-4">
-      <div class="flex justify-between items-center pb-2 border-b border-tactical-border">
-        <span class="text-xs font-mono font-bold text-tactical-cyan uppercase">Autenticidade Oficial</span>
-        <button onclick="closeQrModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+  <div id="modal-qrcode" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-tactical-card border border-tactical-border w-full max-w-xs rounded-2xl p-5 shadow-2xl text-center space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-tactical-border">
+        <h3 id="modal-qrcode-titulo" class="text-sm font-bold text-white truncate">QR Code Fiscal</h3>
+        <button onclick="fecharModalQRCode()" class="text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
       </div>
 
-      <h3 id="qrModalTitle" class="text-sm font-bold text-white">Certidão ANAC SISANT</h3>
-      
-      <!-- Fake QR Code SVG Generator -->
-      <div class="p-4 bg-white rounded-xl mx-auto w-48 h-48 flex items-center justify-center shadow-lg">
-        <svg id="qrSvg" class="w-40 h-40" viewBox="0 0 100 100" fill="none">
-          <rect width="100" height="100" fill="white"/>
-          <rect x="5" y="5" width="25" height="25" fill="black"/>
-          <rect x="9" y="9" width="17" height="17" fill="white"/>
-          <rect x="13" y="13" width="9" height="9" fill="black"/>
-
-          <rect x="70" y="5" width="25" height="25" fill="black"/>
-          <rect x="74" y="9" width="17" height="17" fill="white"/>
-          <rect x="78" y="13" width="9" height="9" fill="black"/>
-
-          <rect x="5" y="70" width="25" height="25" fill="black"/>
-          <rect x="9" y="74" width="17" height="17" fill="white"/>
-          <rect x="13" y="78" width="9" height="9" fill="black"/>
-
-          <rect x="36" y="10" width="6" height="6" fill="black"/>
-          <rect x="46" y="16" width="6" height="6" fill="black"/>
-          <rect x="56" y="8" width="6" height="6" fill="black"/>
-          <rect x="38" y="28" width="6" height="6" fill="black"/>
-          <rect x="48" y="38" width="8" height="8" fill="#0284c7"/>
-          <rect x="12" y="42" width="6" height="6" fill="black"/>
-          <rect x="24" y="48" width="6" height="6" fill="black"/>
-          <rect x="72" y="38" width="6" height="6" fill="black"/>
-          <rect x="84" y="44" width="6" height="6" fill="black"/>
-          <rect x="38" y="52" width="6" height="6" fill="black"/>
-          <rect x="52" y="58" width="6" height="6" fill="black"/>
-          <rect x="68" y="64" width="6" height="6" fill="black"/>
-          <rect x="80" y="72" width="6" height="6" fill="black"/>
-          <rect x="40" y="78" width="6" height="6" fill="black"/>
-          <rect x="54" y="84" width="6" height="6" fill="black"/>
-        </svg>
+      <div class="bg-white p-4 rounded-xl flex items-center justify-center shadow-inner qr-container">
+        <div id="qrcode-render-target"></div>
       </div>
 
-      <p class="text-[11px] text-slate-400 font-mono" id="qrModalUrl">https://sistemas.anac.gov.br/...</p>
-      
-      <button onclick="closeQrModal()" class="w-full py-2.5 bg-tactical-cyan text-tactical-900 font-bold rounded-xl text-xs">
-        Fechar QR Code
+      <div class="text-[11px] text-slate-400 space-y-1">
+        <p class="font-mono text-slate-300">Escaneie com a câmera do celular</p>
+      </div>
+
+      <button onclick="fecharModalQRCode()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 py-2.5 rounded-xl text-xs font-mono">
+        Fechar
       </button>
     </div>
   </div>
 
-
   <!-- ========================================== -->
-  <!-- MODAL: INSTALAÇÃO DO PWA                   -->
-  <!-- ========================================== -->
-  <div id="installModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden items-center justify-center p-4">
-    <div class="w-full max-w-sm bg-tactical-850 border border-tactical-border rounded-2xl p-6 space-y-4">
-      <div class="flex justify-between items-center pb-2 border-b border-tactical-border">
-        <span class="text-xs font-mono font-bold text-tactical-cyan uppercase">Instalação PWA</span>
-        <button onclick="closeInstallModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-
-      <div class="text-center space-y-2">
-        <div class="w-14 h-14 rounded-2xl bg-tactical-800 border-2 border-tactical-cyan/40 mx-auto flex items-center justify-center text-tactical-cyan text-2xl shadow-lg">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <h3 class="text-base font-bold text-white">Instalar DroneID Pro</h3>
-        <p class="text-xs text-slate-400">Tenha acesso instantâneo ao crachá e documentos mesmo sem internet.</p>
-      </div>
-
-      <div class="bg-tactical-900 p-3 rounded-xl border border-tactical-border space-y-2 text-xs text-slate-300">
-        <div class="flex items-start space-x-2">
-          <i class="fa-brands fa-android text-tactical-emerald text-sm mt-0.5"></i>
-          <div>
-            <strong class="text-white block">No Android (Chrome):</strong>
-            Toque nos 3 pontos verticais (<i class="fa-solid fa-ellipsis-vertical"></i>) e escolha <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.
-          </div>
-        </div>
-        <div class="flex items-start space-x-2 pt-2 border-t border-tactical-border/60">
-          <i class="fa-brands fa-apple text-slate-200 text-sm mt-0.5"></i>
-          <div>
-            <strong class="text-white block">No iPhone (Safari):</strong>
-            Toque no botão Compartilhar (<i class="fa-solid fa-arrow-up-from-bracket"></i>) e role até <strong>"Adicionar à Tela de Início"</strong>.
-          </div>
-        </div>
-      </div>
-
-      <button id="btnTriggerPrompt" onclick="triggerNativeInstall()" class="w-full py-2.5 bg-tactical-cyan hover:bg-cyan-300 text-tactical-900 font-bold rounded-xl text-xs transition">
-        Instalar Agora
-      </button>
-    </div>
-  </div>
-
-
-  <!-- ========================================== -->
-  <!-- JAVASCRIPT: LÓGICA E ESTADO DA APLICAÇÃO   -->
+  <!-- JAVASCRIPT: LÓGICA COMPLETA & PERSISTÊNCIA -->
   <!-- ========================================== -->
   <script>
-    // --- ESTADO INICIAL ---
-    let isAuthenticated = false;
-    let storedPin = localStorage.getItem('droneid_pin') || '1234';
-    let currentEnteredPin = '';
-    let deferredPrompt = null;
+    const DADOS_DEFAULT = {
+      piloto: {
+        nome: "Lucas M. Silveira",
+        cpf: "348.918.270-44",
+        telefone: "(11) 98765-4321",
+        foto: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=300&auto=format&fit=crop&q=80"
+      },
+      drone: {
+        modelo: "DJI Mavic 3 Pro",
+        sisant: "PP-314890123",
+        serial: "1581F4Z7C239801A",
+        peso: "958g"
+      },
+      validades: {
+        anac: "2026-11-18",
+        anatel: "2028-05-10",
+        reta: "2025-05-28",
+        sarpas: "2025-06-15"
+      },
+      linksDrive: {
+        anac: "https://drive.google.com/file/d/1ExampleANAC/view?usp=sharing",
+        anatel: "https://drive.google.com/file/d/1ExampleANATEL/view?usp=sharing",
+        reta: "https://drive.google.com/file/d/1ExampleRETA/view?usp=sharing",
+        sarpas: "https://drive.google.com/file/d/1ExampleSARPAS/view?usp=sharing"
+      },
+      seguranca: {
+        pin: "1234",
+        biometriaHabilitada: true
+      }
+    };
 
-    const DEFAULT_PHOTO = "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&w=300&q=80";
-    let pilotPhotoData = localStorage.getItem('droneid_pilot_photo') || DEFAULT_PHOTO;
+    let estadoApp = {};
+    let pinDigitado = "";
+    let painelAjustesDesbloqueado = false;
+    let qrCodeInstancia = null;
 
-    // --- VARIÁVEIS DO CROPPER (RECORTE) ---
-    let rawLoadedImage = new Image();
-    let cropRotation = 0; // 0, 90, 180, 270
-
-    // --- CHECKLIST ITEMS DEFAULT ---
-    let defaultChecklist = [
-      { id: 1, text: "Inspeção física de hélices, motores e corpo do drone", done: false },
-      { id: 2, text: "Bateria da aeronave e rádio controle em 100% de carga", done: false },
-      { id: 3, text: "Calibração de bússola (IMU) e checagem de satélites GNSS (> 12)", done: false },
-      { id: 4, text: "Definição do ponto de retorno de segurança (RTH seguro)", done: false },
-      { id: 5, text: "Cartão MicroSD inserido e espaço livre para gravação", done: false }
-    ];
-    let checklistItems = JSON.parse(localStorage.getItem('droneid_checklist')) || defaultChecklist;
-
-    // --- FOTO DO PILOTO & RECORTE ---
-    function triggerPhotoSelect() {
-      document.getElementById('hiddenPhotoInput').click();
-    }
-
-    function handlePhotoSelected(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function(e) {
-        rawLoadedImage = new Image();
-        rawLoadedImage.onload = function() {
-          openCropModal();
-        };
-        rawLoadedImage.src = e.target.result;
-      };
-      reader.readAsDataURL(file);
-      event.target.value = ''; // Limpa para permitir selecionar a mesma foto novamente
-    }
-
-    function openCropModal() {
-      cropRotation = 0;
-      resetCropControls();
-      document.getElementById('cropModal').classList.remove('hidden');
-      document.getElementById('cropModal').classList.add('flex');
-      updateCropCanvas();
-    }
-
-    function closeCropModal() {
-      document.getElementById('cropModal').classList.add('hidden');
-      document.getElementById('cropModal').classList.remove('flex');
-    }
-
-    function resetCropControls() {
-      document.getElementById('cropZoom').value = 1;
-      document.getElementById('cropPanX').value = 0;
-      document.getElementById('cropPanY').value = 0;
-      document.getElementById('zoomValLabel').innerText = "1.0x";
-      updateCropCanvas();
-    }
-
-    function rotateCropImage() {
-      cropRotation = (cropRotation + 90) % 360;
-      updateCropCanvas();
-    }
-
-    function updateCropCanvas() {
-      const canvas = document.getElementById('cropCanvas');
-      if (!canvas || !rawLoadedImage.src) return;
-      const ctx = canvas.getContext('2d');
-      const w = canvas.width;
-      const h = canvas.height;
-
-      const zoom = parseFloat(document.getElementById('cropZoom').value);
-      const panX = parseFloat(document.getElementById('cropPanX').value);
-      const panY = parseFloat(document.getElementById('cropPanY').value);
-      document.getElementById('zoomValLabel').innerText = zoom.toFixed(1) + 'x';
-
-      ctx.save();
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "#000000";
-      ctx.fillRect(0, 0, w, h);
-
-      // Ponto de ancoragem central
-      ctx.translate(w / 2 + panX, h / 2 + panY);
-      ctx.rotate((cropRotation * Math.PI) / 180);
-      ctx.scale(zoom, zoom);
-
-      // Desenha imagem mantendo proporção de cobertura
-      const imgAspect = rawLoadedImage.width / rawLoadedImage.height;
-      const canvasAspect = w / h;
-      let drawW, drawH;
-
-      if (imgAspect > canvasAspect) {
-        drawH = h;
-        drawW = h * imgAspect;
+    function carregarEstado() {
+      const salvo = localStorage.getItem('droneid_pro_audit_db');
+      if (salvo) {
+        try {
+          estadoApp = JSON.parse(salvo);
+          if (!estadoApp.linksDrive) {
+            estadoApp.linksDrive = JSON.parse(JSON.stringify(DADOS_DEFAULT.linksDrive));
+          }
+        } catch (e) {
+          estadoApp = JSON.parse(JSON.stringify(DADOS_DEFAULT));
+        }
       } else {
-        drawW = w;
-        drawH = w / imgAspect;
+        estadoApp = JSON.parse(JSON.stringify(DADOS_DEFAULT));
+      }
+      atualizarInterfaceCompleta();
+    }
+
+    function salvarEstado() {
+      localStorage.setItem('droneid_pro_audit_db', JSON.stringify(estadoApp));
+      atualizarInterfaceCompleta();
+    }
+
+    function calcularStatusData(dataString) {
+      if (!dataString) return { status: 'vencido', texto: 'Não informada', badgeClass: 'bg-rose-500/20 text-rose-400 border-rose-500/30' };
+
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+
+      const partes = dataString.split('-');
+      const dataAlvo = new Date(parseInt(partes[0]), parseInt(partes[1]) - 1, parseInt(partes[2]));
+
+      const diffMs = dataAlvo.getTime() - hoje.getTime();
+      const diffDias = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDias < 0) {
+        return {
+          status: 'vencido',
+          texto: `Vencido há ${Math.abs(diffDias)} dia(s)`,
+          badgeClass: 'bg-tactical-rose/20 text-tactical-rose border-tactical-rose/40 font-bold',
+          dias: diffDias
+        };
+      } else if (diffDias === 0) {
+        return {
+          status: 'vencido',
+          texto: 'Vence hoje!',
+          badgeClass: 'bg-tactical-rose/20 text-tactical-rose border-tactical-rose/40 font-bold',
+          dias: diffDias
+        };
+      } else if (diffDias <= 30) {
+        return {
+          status: 'atencao',
+          texto: `Expira em ${diffDias} dias`,
+          badgeClass: 'bg-tactical-amber/20 text-amber-400 border-tactical-amber/40',
+          dias: diffDias
+        };
+      } else {
+        return {
+          status: 'valido',
+          texto: `Válido (${diffDias} dias)`,
+          badgeClass: 'bg-tactical-emerald/20 text-tactical-emerald border-tactical-emerald/40',
+          dias: diffDias
+        };
+      }
+    }
+
+    function formatarDataBR(dataIso) {
+      if (!dataIso) return '--/--/----';
+      const p = dataIso.split('-');
+      return `${p[2]}/${p[1]}/${p[0]}`;
+    }
+
+    function atualizarInterfaceCompleta() {
+      // 1. Textos do Crachá
+      document.getElementById('cracha-nome').textContent = estadoApp.piloto.nome;
+      document.getElementById('cracha-cpf').textContent = estadoApp.piloto.cpf;
+      document.getElementById('cracha-telefone').textContent = estadoApp.piloto.telefone;
+      document.getElementById('piloto-foto').src = estadoApp.piloto.foto;
+
+      document.getElementById('cracha-drone-modelo').textContent = estadoApp.drone.modelo;
+      document.getElementById('cracha-drone-sisant').textContent = estadoApp.drone.sisant;
+      document.getElementById('cracha-drone-serial').textContent = estadoApp.drone.serial;
+      document.getElementById('cracha-drone-peso').textContent = estadoApp.drone.peso;
+
+      // 2. Formulário de Ajustes
+      document.getElementById('edit-nome').value = estadoApp.piloto.nome;
+      document.getElementById('edit-cpf').value = estadoApp.piloto.cpf;
+      document.getElementById('edit-telefone').value = estadoApp.piloto.telefone;
+
+      document.getElementById('edit-drone-modelo').value = estadoApp.drone.modelo;
+      document.getElementById('edit-drone-sisant').value = estadoApp.drone.sisant;
+      document.getElementById('edit-drone-serial').value = estadoApp.drone.serial;
+      document.getElementById('edit-drone-peso').value = estadoApp.drone.peso;
+
+      document.getElementById('edit-data-anac').value = estadoApp.validades.anac;
+      document.getElementById('edit-data-anatel').value = estadoApp.validades.anatel;
+      document.getElementById('edit-data-reta').value = estadoApp.validades.reta;
+      document.getElementById('edit-data-sarpas').value = estadoApp.validades.sarpas;
+
+      document.getElementById('edit-link-anac').value = estadoApp.linksDrive.anac || '';
+      document.getElementById('edit-link-anatel').value = estadoApp.linksDrive.anatel || '';
+      document.getElementById('edit-link-reta').value = estadoApp.linksDrive.reta || '';
+      document.getElementById('edit-link-sarpas').value = estadoApp.linksDrive.sarpas || '';
+
+      document.getElementById('edit-biometria-habilitada').checked = estadoApp.seguranca.biometriaHabilitada;
+
+      // 3. Auditoria dos 4 Documentos Regulatórios
+      const docs = [
+        {
+          id: 'anac',
+          titulo: 'Certidão de Cadastro ANAC (SISANT)',
+          orgao: 'Agência Nacional de Aviação Civil',
+          data: estadoApp.validades.anac,
+          link: estadoApp.linksDrive.anac,
+          icone: 'shield-check',
+          urlFallback: `https://sistemas.anac.gov.br/sisant/consulta?registro=${encodeURIComponent(estadoApp.drone.sisant)}`
+        },
+        {
+          id: 'anatel',
+          titulo: 'Certificado de Homologação ANATEL',
+          orgao: 'Agência Nacional de Telecomunicações',
+          data: estadoApp.validades.anatel,
+          link: estadoApp.linksDrive.anatel,
+          icone: 'radio',
+          urlFallback: `https://sistemas.anatel.gov.br/mosaico/homologacao/consulta?serial=${encodeURIComponent(estadoApp.drone.serial)}`
+        },
+        {
+          id: 'reta',
+          titulo: 'Seguro Obrigatório RETA (Acidentes Pessoais)',
+          orgao: 'Apólice de Seguro Aeronáutico Obrigatório',
+          data: estadoApp.validades.reta,
+          link: estadoApp.linksDrive.reta,
+          icone: 'file-text',
+          urlFallback: `https://seguradoras.com.br/apolice-reta?drone=${encodeURIComponent(estadoApp.drone.sisant)}`
+        },
+        {
+          id: 'sarpas',
+          titulo: 'Autorização de Voo SARPAS DECEA',
+          orgao: 'Departamento de Controle do Espaço Aéreo',
+          data: estadoApp.validades.sarpas,
+          link: estadoApp.linksDrive.sarpas,
+          icone: 'send',
+          urlFallback: `https://sarpas.decea.mil.br/consulta-voo?piloto=${encodeURIComponent(estadoApp.piloto.cpf)}`
+        }
+      ];
+
+      let totalValidos = 0;
+      let totalVencidos = 0;
+      let listaDocsHTML = '';
+
+      docs.forEach(doc => {
+        const audit = calcularStatusData(doc.data);
+        if (audit.status === 'valido' || audit.status === 'atencao') {
+          totalValidos++;
+        } else {
+          totalVencidos++;
+        }
+
+        const urlFinal = (doc.link && doc.link.trim().length > 5) ? doc.link.trim() : doc.urlFallback;
+
+        listaDocsHTML += `
+          <div class="bg-tactical-card border ${audit.status === 'vencido' ? 'border-tactical-rose/60 bg-tactical-rose/5' : 'border-tactical-border'} rounded-xl p-4 shadow-md transition-all">
+            <div class="flex items-start justify-between">
+              <div class="flex items-start space-x-3">
+                <div class="w-9 h-9 rounded-lg ${audit.status === 'vencido' ? 'bg-tactical-rose/20 text-tactical-rose' : 'bg-tactical-cyan/15 text-tactical-cyan'} flex items-center justify-center shrink-0 mt-0.5">
+                  <i data-lucide="${doc.icone}" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h3 class="text-xs font-bold text-white">${doc.titulo}</h3>
+                  <p class="text-[10px] text-slate-400 font-mono">${doc.orgao}</p>
+                </div>
+              </div>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded border ${audit.badgeClass}">
+                ${audit.texto}
+              </span>
+            </div>
+
+            <!-- VALIDADE E BOTÕES INTERATIVOS (LINKS BRUTOS OCULTOS) -->
+            <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] font-mono">
+              <span class="text-slate-400">Validade: <strong class="text-slate-200">${formatarDataBR(doc.data)}</strong></span>
+              
+              <div class="flex items-center space-x-2">
+                <a href="${urlFinal}" target="_blank" rel="noopener noreferrer" class="bg-tactical-cyan/15 hover:bg-tactical-cyan/25 text-tactical-cyan border border-tactical-cyan/40 px-2.5 py-1 rounded-lg flex items-center space-x-1 transition-all active:scale-95">
+                  <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+                  <span>Abrir PDF</span>
+                </a>
+                <button onclick="abrirModalQRCode('${doc.titulo}', '${urlFinal}')" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 px-2.5 py-1 rounded-lg flex items-center space-x-1 transition-all active:scale-95" title="Ver QR Code do Documento">
+                  <i data-lucide="qr-code" class="w-3.5 h-3.5"></i>
+                  <span>QR Code</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+
+      document.getElementById('lista-documentos-cards').innerHTML = listaDocsHTML;
+
+      // 4. Status Global do Crachá
+      const badgeGlobal = document.getElementById('badge-status-global');
+      const badgeText = document.getElementById('badge-status-text');
+      const crachaTag = document.getElementById('cracha-status-tag');
+      const crachaFrame = document.getElementById('cracha-card-frame');
+      const bannerAlerta = document.getElementById('banner-alerta-vencido');
+      const navDocBadge = document.getElementById('nav-doc-badge');
+      const docCounterBadge = document.getElementById('doc-counter-badge');
+
+      if (totalVencidos > 0) {
+        badgeGlobal.className = "text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full flex items-center space-x-1.5 bg-tactical-rose/20 text-tactical-rose border border-tactical-rose/40";
+        badgeText.textContent = "IRREGULAR";
+        
+        crachaTag.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase bg-tactical-rose/20 text-tactical-rose border border-tactical-rose/40";
+        crachaTag.textContent = "OPERAÇÃO BLOQUEADA / PENDÊNCIA";
+
+        crachaFrame.className = "relative bg-gradient-to-b from-tactical-card to-tactical-panel border-2 border-tactical-rose/70 rounded-2xl p-5 shadow-2xl shadow-tactical-rose/10 transition-all";
+        bannerAlerta.classList.remove('hidden');
+
+        navDocBadge.classList.remove('hidden');
+        navDocBadge.textContent = `${totalVencidos}`;
+        docCounterBadge.textContent = `${totalVencidos} Pendência(s) • ${totalValidos}/4 Regulares`;
+        docCounterBadge.className = "text-xs font-mono px-2.5 py-1 rounded-full bg-tactical-rose/20 text-tactical-rose border border-tactical-rose/40 font-bold";
+      } else {
+        badgeGlobal.className = "text-[11px] font-mono font-semibold px-2.5 py-1 rounded-full flex items-center space-x-1.5 bg-tactical-emerald/20 text-tactical-emerald border border-tactical-emerald/40";
+        badgeText.textContent = "REGULAR";
+
+        crachaTag.className = "text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase bg-tactical-emerald/20 text-tactical-emerald border border-tactical-emerald/40";
+        crachaTag.textContent = "REGULAR / APTO PARA VOO";
+
+        crachaFrame.className = "relative bg-gradient-to-b from-tactical-card to-tactical-panel border-2 border-tactical-emerald/50 rounded-2xl p-5 shadow-2xl shadow-tactical-emerald/5 transition-all";
+        bannerAlerta.classList.add('hidden');
+
+        navDocBadge.classList.add('hidden');
+        docCounterBadge.textContent = "4 / 4 Em Dia";
+        docCounterBadge.className = "text-xs font-mono px-2.5 py-1 rounded-full bg-tactical-emerald/20 text-tactical-emerald border border-tactical-emerald/40";
       }
 
-      ctx.drawImage(rawLoadedImage, -drawW / 2, -drawH / 2, drawW, drawH);
-      ctx.restore();
-    }
-
-    function saveCroppedPhoto() {
-      const canvas = document.getElementById('cropCanvas');
-      const croppedBase64 = canvas.toDataURL('image/jpeg', 0.9);
-      
-      pilotPhotoData = croppedBase64;
-      localStorage.setItem('droneid_pilot_photo', croppedBase64);
-      applyPilotPhoto();
-      closeCropModal();
-      alert("Foto do piloto atualizada e salva com sucesso!");
-    }
-
-    function resetDefaultPhoto() {
-      if (confirm("Deseja restaurar a foto padrão original?")) {
-        pilotPhotoData = DEFAULT_PHOTO;
-        localStorage.removeItem('droneid_pilot_photo');
-        applyPilotPhoto();
-        alert("Foto restaurada para a original!");
+      if (window.lucide) {
+        lucide.createIcons();
       }
     }
 
-    function applyPilotPhoto() {
-      const elCracha = document.getElementById('pilotPhoto');
-      const elSettings = document.getElementById('settingsPilotPreview');
-      if (elCracha) elCracha.src = pilotPhotoData;
-      if (elSettings) elSettings.src = pilotPhotoData;
-    }
-
-    // --- TROCA DE ABAS ---
-    function switchTab(tabName) {
-      const tabs = ['cracha', 'documentos', 'checklist', 'ajustes'];
-      tabs.forEach(t => {
-        const el = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
-        const btn = document.getElementById('navBtn-' + t);
-        if (t === tabName) {
+    // -------------------------------------------------------------
+    // NAVEGAÇÃO ENTRE ABAS (3 ABAS)
+    // -------------------------------------------------------------
+    function mudarAba(nomeAba) {
+      const abas = ['cracha', 'documentos', 'ajustes'];
+      abas.forEach(aba => {
+        const el = document.getElementById(`tab-${aba}`);
+        const btn = document.getElementById(`nav-btn-${aba}`);
+        if (aba === nomeAba) {
           el.classList.remove('hidden');
-          btn.className = "flex flex-col items-center justify-center py-1.5 rounded-xl transition text-tactical-cyan bg-tactical-800/80 border border-tactical-cyan/30";
+          btn.classList.add('text-tactical-cyan');
+          btn.classList.remove('text-slate-400');
         } else {
           el.classList.add('hidden');
-          btn.className = "flex flex-col items-center justify-center py-1.5 rounded-xl transition text-slate-400 hover:text-slate-200";
+          btn.classList.remove('text-tactical-cyan');
+          btn.classList.add('text-slate-400');
         }
       });
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // --- CONTROLE DE AJUSTES & PIN ---
-    function handleAjustesClick() {
-      if (isAuthenticated) {
-        switchTab('ajustes');
-      } else {
-        openPinModal();
+    // -------------------------------------------------------------
+    // CONTROLE DE ACESSO POR PIN E BIOMETRIA
+    // -------------------------------------------------------------
+    function solicitarAcessoAjustes() {
+      if (painelAjustesDesbloqueado) {
+        mudarAba('ajustes');
+        return;
       }
+      abrirModalPIN();
     }
 
-    function openPinModal() {
-      currentEnteredPin = '';
-      updatePinDots();
-      document.getElementById('pinModal').classList.remove('hidden');
-      document.getElementById('pinModal').classList.add('flex');
+    function abrirModalPIN() {
+      pinDigitado = "";
+      atualizarDotsPIN();
+      document.getElementById('modal-pin').classList.remove('hidden');
     }
 
-    function closePinModal() {
-      document.getElementById('pinModal').classList.add('hidden');
-      document.getElementById('pinModal').classList.remove('flex');
+    function fecharModalPIN() {
+      document.getElementById('modal-pin').classList.add('hidden');
+      pinDigitado = "";
     }
 
-    function pressPinDigit(digit) {
-      if (currentEnteredPin.length < 4) {
-        currentEnteredPin += digit;
-        updatePinDots();
-        if (currentEnteredPin.length === 4) {
-          setTimeout(verifyPin, 150);
+    function teclarPIN(digito) {
+      if (pinDigitado.length < 4) {
+        pinDigitado += digito;
+        atualizarDotsPIN();
+        if (pinDigitado.length === 4) {
+          setTimeout(validarPIN, 150);
         }
       }
     }
 
-    function pressPinBackspace() {
-      if (currentEnteredPin.length > 0) {
-        currentEnteredPin = currentEnteredPin.slice(0, -1);
-        updatePinDots();
+    function apagarPIN() {
+      if (pinDigitado.length > 0) {
+        pinDigitado = pinDigitado.slice(0, -1);
+        atualizarDotsPIN();
       }
     }
 
-    function updatePinDots() {
-      for (let i = 0; i < 4; i++) {
-        const dot = document.getElementById('dot-' + i);
-        if (i < currentEnteredPin.length) {
-          dot.className = "w-3.5 h-3.5 rounded-full bg-tactical-cyan border-2 border-tactical-cyan shadow-sm shadow-tactical-cyan";
+    function atualizarDotsPIN() {
+      for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`pin-dot-${i}`);
+        if (i <= pinDigitado.length) {
+          dot.className = "w-3.5 h-3.5 rounded-full bg-tactical-cyan border-2 border-tactical-cyan scale-110 transition-all";
         } else {
-          dot.className = "w-3.5 h-3.5 rounded-full border-2 border-tactical-cyan/40";
+          dot.className = "w-3.5 h-3.5 rounded-full border-2 border-slate-600 transition-all";
         }
       }
     }
 
-    function verifyPin() {
-      if (currentEnteredPin === storedPin) {
-        isAuthenticated = true;
-        closePinModal();
-        switchTab('ajustes');
+    function validarPIN() {
+      if (pinDigitado === estadoApp.seguranca.pin) {
+        painelAjustesDesbloqueado = true;
+        fecharModalPIN();
+        mudarAba('ajustes');
       } else {
-        alert("PIN Incorreto!");
-        currentEnteredPin = '';
-        updatePinDots();
+        alert('PIN incorreto. Tente novamente.');
+        pinDigitado = "";
+        atualizarDotsPIN();
       }
     }
 
-    function triggerBiometricAuth() {
-      const btn = event.currentTarget;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-xl"></i>`;
+    function autenticarBiometria() {
+      if (!estadoApp.seguranca.biometriaHabilitada) {
+        alert('Biometria desativada. Digite o PIN.');
+        return;
+      }
       setTimeout(() => {
-        btn.innerHTML = `<i class="fa-solid fa-fingerprint text-xl"></i>`;
-        isAuthenticated = true;
-        closePinModal();
-        switchTab('ajustes');
-      }, 700);
+        painelAjustesDesbloqueado = true;
+        fecharModalPIN();
+        mudarAba('ajustes');
+      }, 300);
     }
 
-    function recoverPinPrompt() {
-      const resp = confirm("Deseja redefinir o PIN para o código padrão?");
-      if (resp) {
-        storedPin = '1234';
-        localStorage.setItem('droneid_pin', '1234');
-        alert("PIN redefinido com sucesso");
-        currentEnteredPin = '';
-        updatePinDots();
+    function recuperarPIN() {
+      const primeirosDigitos = estadoApp.piloto.cpf.replace(/\D/g, '').slice(0, 4);
+      const digitado = prompt('Segurança: Para redefinir seu PIN, digite os 4 primeiros dígitos do CPF do operador:');
+      if (digitado && digitado === primeirosDigitos) {
+        const novo = prompt('Identidade confirmada! Digite o novo PIN de 4 dígitos:');
+        if (novo && novo.length === 4 && !isNaN(novo)) {
+          estadoApp.seguranca.pin = novo;
+          salvarEstado();
+          alert(`Novo PIN ${novo} cadastrado com sucesso!`);
+          fecharModalPIN();
+        } else {
+          alert('PIN inválido. Deve conter exatamente 4 dígitos numéricos.');
+        }
+      } else if (digitado) {
+        alert('Dígitos do CPF incorretos. Acesso negado.');
       }
     }
 
-    function saveNewPin() {
-      const newPin = document.getElementById('inputNewPin').value;
-      if (newPin.length === 4 && /^\d+$/.test(newPin)) {
-        storedPin = newPin;
-        localStorage.setItem('droneid_pin', newPin);
-        alert("Novo PIN salvo com sucesso!");
-        document.getElementById('inputNewPin').value = '';
+    function alterarPIN() {
+      const novo = document.getElementById('edit-novo-pin').value;
+      if (novo && novo.length === 4 && !isNaN(novo)) {
+        estadoApp.seguranca.pin = novo;
+        salvarEstado();
+        document.getElementById('edit-novo-pin').value = '';
+        alert('PIN alterado com sucesso!');
       } else {
-        alert("O PIN deve conter exatamente 4 números!");
+        alert('O PIN deve conter exatamente 4 números.');
       }
     }
 
-    function saveSettingsData() {
-      const name = document.getElementById('inputPilotName').value;
-      const cpf = document.getElementById('inputPilotCpf').value;
-      const phone = document.getElementById('inputPilotPhone').value;
-      const model = document.getElementById('inputDroneModel').value;
-      const sisant = document.getElementById('inputDroneSisant').value;
-      const sn = document.getElementById('inputDroneSn').value;
-      const weight = document.getElementById('inputDroneWeight').value;
-
-      document.getElementById('pilotName').innerText = name;
-      document.getElementById('pilotCpf').innerText = cpf;
-      document.getElementById('pilotPhone').innerText = phone;
-      document.getElementById('droneModel').innerText = model;
-      document.getElementById('droneSisant').innerText = sisant;
-      document.getElementById('droneSn').innerText = sn;
-      document.getElementById('droneWeight').innerText = weight;
-
-      alert("Dados salvos e sincronizados com sucesso!");
-      switchTab('cracha');
+    function bloquearPainelAjustes() {
+      painelAjustesDesbloqueado = false;
+      mudarAba('cracha');
     }
 
-    // --- CHECKLIST CRUD LOGIC ---
-    function renderChecklist() {
-      const container = document.getElementById('checklistContainer');
-      container.innerHTML = '';
+    // -------------------------------------------------------------
+    // SALVAR DADOS E LINKS DO DRIVE NO LOCALSTORAGE
+    // -------------------------------------------------------------
+    function salvarAjustesPerfil(e) {
+      e.preventDefault();
 
-      let completedCount = 0;
+      estadoApp.piloto.nome = document.getElementById('edit-nome').value.trim();
+      estadoApp.piloto.cpf = document.getElementById('edit-cpf').value.trim();
+      estadoApp.piloto.telefone = document.getElementById('edit-telefone').value.trim();
 
-      checklistItems.forEach((item) => {
-        if (item.done) completedCount++;
+      estadoApp.drone.modelo = document.getElementById('edit-drone-modelo').value.trim();
+      estadoApp.drone.sisant = document.getElementById('edit-drone-sisant').value.trim();
+      estadoApp.drone.serial = document.getElementById('edit-drone-serial').value.trim();
+      estadoApp.drone.peso = document.getElementById('edit-drone-peso').value.trim();
 
-        const div = document.createElement('div');
-        div.className = `flex items-center justify-between p-3 rounded-xl border transition ${item.done ? 'bg-tactical-850/60 border-tactical-emerald/30 text-slate-400' : 'bg-tactical-850 border-tactical-border text-white'}`;
-        div.innerHTML = `
-          <div class="flex items-center space-x-3 flex-1 cursor-pointer" onclick="toggleChecklistItem(${item.id})">
-            <div class="w-5 h-5 rounded-md border flex items-center justify-center transition ${item.done ? 'bg-tactical-emerald border-tactical-emerald text-tactical-900 font-bold' : 'border-tactical-border bg-tactical-900'}">
-              ${item.done ? '<i class="fa-solid fa-check text-xs"></i>' : ''}
-            </div>
-            <span class="text-xs ${item.done ? 'line-through text-slate-400' : 'font-medium'}">${item.text}</span>
-          </div>
-          <div class="flex items-center space-x-1 ml-2">
-            <button onclick="editChecklistItem(${item.id})" class="p-1.5 text-slate-400 hover:text-tactical-cyan"><i class="fa-solid fa-pen text-xs"></i></button>
-            <button onclick="deleteChecklistItem(${item.id})" class="p-1.5 text-slate-400 hover:text-tactical-rose"><i class="fa-solid fa-trash text-xs"></i></button>
-          </div>
-        `;
-        container.appendChild(div);
+      estadoApp.validades.anac = document.getElementById('edit-data-anac').value;
+      estadoApp.validades.anatel = document.getElementById('edit-data-anatel').value;
+      estadoApp.validades.reta = document.getElementById('edit-data-reta').value;
+      estadoApp.validades.sarpas = document.getElementById('edit-data-sarpas').value;
+
+      estadoApp.linksDrive.anac = document.getElementById('edit-link-anac').value.trim();
+      estadoApp.linksDrive.anatel = document.getElementById('edit-link-anatel').value.trim();
+      estadoApp.linksDrive.reta = document.getElementById('edit-link-reta').value.trim();
+      estadoApp.linksDrive.sarpas = document.getElementById('edit-link-sarpas').value.trim();
+
+      estadoApp.seguranca.biometriaHabilitada = document.getElementById('edit-biometria-habilitada').checked;
+
+      salvarEstado();
+      alert('Configurações e links salvos com sucesso!');
+      mudarAba('cracha');
+    }
+
+    function manipularUploadFoto(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          estadoApp.piloto.foto = evt.target.result;
+          salvarEstado();
+        };
+        reader.readAsDataURL(file);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // GERADOR DE QR CODE DINÂMICO
+    // -------------------------------------------------------------
+    function abrirModalQRCode(titulo, url) {
+      document.getElementById('modal-qrcode-titulo').textContent = titulo;
+
+      const target = document.getElementById('qrcode-render-target');
+      target.innerHTML = '';
+
+      qrCodeInstancia = new QRCode(target, {
+        text: url,
+        width: 190,
+        height: 190,
+        colorDark : "#030712",
+        colorLight : "#ffffff",
+        correctLevel : QRCode.CorrectLevel.M
       });
 
-      const total = checklistItems.length;
-      const pct = total === 0 ? 0 : Math.round((completedCount / total) * 100);
-      document.getElementById('checklistProgressText').innerText = `${completedCount} de ${total} Concluídos (${pct}%)`;
-      document.getElementById('checklistProgressBar').style.width = pct + '%';
-      document.getElementById('navChecklistBadge').innerText = `${completedCount}/${total}`;
-
-      localStorage.setItem('droneid_checklist', JSON.stringify(checklistItems));
+      document.getElementById('modal-qrcode').classList.remove('hidden');
     }
 
-    function toggleChecklistItem(id) {
-      checklistItems = checklistItems.map(item => item.id === id ? { ...item, done: !item.done } : item);
-      renderChecklist();
+    function fecharModalQRCode() {
+      document.getElementById('modal-qrcode').classList.add('hidden');
     }
 
-    function openAddItemModal() {
-      const text = prompt("Digite o novo item de vistoria:");
-      if (text && text.trim() !== '') {
-        checklistItems.push({ id: Date.now(), text: text.trim(), done: false });
-        renderChecklist();
-      }
+    // -------------------------------------------------------------
+    // PWA & SERVICE WORKER
+    // -------------------------------------------------------------
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(err => {
+          console.log('[SW] Modo offline ou local:', err);
+        });
+      });
     }
 
-    function editChecklistItem(id) {
-      const item = checklistItems.find(i => i.id === id);
-      if (!item) return;
-      const newText = prompt("Editar item de inspeção:", item.text);
-      if (newText && newText.trim() !== '') {
-        item.text = newText.trim();
-        renderChecklist();
-      }
-    }
-
-    function deleteChecklistItem(id) {
-      if (confirm("Remover este item do checklist?")) {
-        checklistItems = checklistItems.filter(i => i.id !== id);
-        renderChecklist();
-      }
-    }
-
-    // --- MODAL DE QR CODE & PDF ---
-    function showQrModal(title, url) {
-      document.getElementById('qrModalTitle').innerText = title;
-      document.getElementById('qrModalUrl').innerText = url;
-      document.getElementById('qrModal').classList.remove('hidden');
-      document.getElementById('qrModal').classList.add('flex');
-    }
-
-    function closeQrModal() {
-      document.getElementById('qrModal').classList.add('hidden');
-      document.getElementById('qrModal').classList.remove('flex');
-    }
-
-    function openFakePdf(docTitle) {
-      alert(`Abrindo "${docTitle}" a partir do cache seguro IndexedDB...`);
-    }
-
-    // --- PWA MODAL & PROMPT ---
-    function openInstallModal() {
-      document.getElementById('installModal').classList.remove('hidden');
-      document.getElementById('installModal').classList.add('flex');
-    }
-
-    function closeInstallModal() {
-      document.getElementById('installModal').classList.add('hidden');
-      document.getElementById('installModal').classList.remove('flex');
-    }
-
+    let deferredPrompt;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       deferredPrompt = e;
-      const btn = document.getElementById('btnTriggerPrompt');
-      if (btn) btn.innerText = "Instalar Aplicativo Agora";
+      const btn = document.getElementById('pwa-install-btn');
+      if (btn) {
+        btn.classList.remove('hidden');
+        btn.classList.add('inline-flex');
+        btn.onclick = () => {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(() => {
+            btn.classList.add('hidden');
+          });
+        };
+      }
     });
 
-    function triggerNativeInstall() {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-          if (choiceResult.outcome === 'accepted') {
-            console.log('Usuário aceitou a instalação do PWA');
-          }
-          deferredPrompt = null;
-          closeInstallModal();
-        });
-      } else {
-        alert("Para instalar neste navegador, utilize o menu 'Adicionar à tela inicial' ou 'Instalar aplicativo'.");
-      }
-    }
-
-    // --- SINCRONIZAÇÃO OFFLINE ---
-    function triggerManualSync() {
-      const btn = document.getElementById('btnSyncNow');
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i><span>Sincronizando...</span>`;
-      setTimeout(() => {
-        btn.innerHTML = `<i class="fa-solid fa-check text-tactical-emerald"></i><span>Atualizado</span>`;
-        document.getElementById('lastSyncLabel').innerText = "Última sincronização: Agora mesmo";
-        setTimeout(() => {
-          btn.innerHTML = `<i class="fa-solid fa-arrows-rotate"></i><span>Sincronizar Agora</span>`;
-        }, 2000);
-      }, 1000);
-    }
-
-    // --- SERVICE WORKER REGISTRATION (OFFLINE) ---
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').then((reg) => {
-          console.log('DroneID ServiceWorker registrado:', reg.scope);
-        }).catch((err) => {
-          console.log('Falha ao registrar ServiceWorker:', err);
-        });
-      });
-    }
-
-    // Inicialização ao Carregar
     document.addEventListener('DOMContentLoaded', () => {
-      applyPilotPhoto();
-      renderChecklist();
+      carregarEstado();
     });
   </script>
 </body>
